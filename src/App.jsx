@@ -33,6 +33,7 @@ const ROLE_LABELS = { admin:"Manager", warehouse:"Warehouse", hod_audio:"Audio H
 const HOD_ROLES = ["hod_audio","hod_lighting","hod_rigging","hod_power","hod_av"];
 const canReportFault = (role) => HOD_ROLES.includes(role) || role==="admin" || role==="warehouse";
 const isManager = (role) => role==="admin";
+const userIsManager = (user) => user && (user.role==="admin" || user.email==="wynand@eventech.co.za" || user.email==="herman@eventech.co.za");
 const canScanOut = (role) => role==="admin" || role==="warehouse" || role==="crew" || HOD_ROLES.includes(role);
 const isFreelancer = (role) => role==="freelancer";
 
@@ -87,7 +88,7 @@ function QRSvg({code,size=70}){
 // LOGIN
 function Login({onLogin}){
   const [email,setEmail]=useState(""); const [pw,setPw]=useState(""); const [err,setErr]=useState(""); const [busy,setBusy]=useState(false);
-  const go=()=>{ setErr(""); setBusy(true); setTimeout(()=>{ const u=USERS.find(u=>u.email===email&&u.password===pw); if(u)onLogin(u); else{setErr("Invalid credentials.");setBusy(false);} },500); };
+  const go=async()=>{ setErr(""); setBusy(true); const u=await onLogin(email,pw); if(!u){setErr("Invalid email or password.");setBusy(false);} };
   return(
     <div style={{minHeight:"100vh",background:"#0d1117",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{width:400,padding:40,background:"#161b27",borderRadius:20,border:"1px solid #2a2a3a",boxShadow:"0 40px 80px #00000088"}}>
@@ -280,7 +281,9 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
       return;
     }
     try{
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}});
+      // Explicitly request permission first
+      await navigator.permissions.query({name:"camera"}).catch(()=>{});
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}});
       streamRef.current=stream;
       setShowCamera(true);
       // Wait for modal to render then attach stream
@@ -519,7 +522,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
                     <div style={{color:"#e5e7eb",fontWeight:600,fontSize:13}}>{q.client}</div>
                     <div style={{color:"#6b7280",fontSize:12,marginTop:2}}>📅 {q.startDate} → {q.endDate}</div>
                     {q.notes&&<div style={{color:"#4b5563",fontSize:11,marginTop:3,fontStyle:"italic"}}>{q.notes}</div>}
-                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to start scanning this quote</div>
+                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to scan more items onto this quote</div>
                   </div>
                 ))}
               </div>
@@ -883,7 +886,7 @@ function VehicleAssignForm({quotes,setQuotes,vehicles,setVehicles,crew,activeQ,o
 }
 
 // QUOTES (read-only for warehouse, full view for admins)
-function QuotesPage({quotes,units,equipTypes,projects,user}){
+function QuotesPage({quotes,setQuotes,units,equipTypes,projects,user}){
   const [filter,setFilter]=useState("all"); const [detail,setDetail]=useState(null);
   const filtered=quotes.filter(q=>filter==="all"||quoteStatus(q)===filter);
   return(
@@ -913,9 +916,11 @@ function QuotesPage({quotes,units,equipTypes,projects,user}){
                 <div style={{color:"#6b7280",fontSize:13}}>📅 {q.startDate} → {q.endDate} · 📦 {q.lines.length} units{st!=="booked"&&` · ✅ ${ret}/${q.lines.length} returned`}</div>
                 <div style={{color:"#4b5563",fontSize:11,marginTop:5}}>Booked by {booker?.name}{q.checkedOutAt&&` · Out: ${fmt(q.checkedOutAt)}`}{q.checkedInAt&&` · In: ${fmt(q.checkedInAt)}`}</div>
               </div>
-              <div style={{display:"flex",gap:6}}>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <Btn small outline onClick={()=>setDetail(q)} color="#ff8c00">Details</Btn>
                 {(q.status==="out"||q.status==="booked")&&<Btn small outline onClick={()=>printLoadList(q,units,equipTypes,[])} color="#10b981">🖨️ Load List</Btn>}
+                {userIsManager(user)&&q.status==="returned"&&<Btn small outline onClick={()=>{if(window.confirm(`Delete quote ${q.id}?`))setQuotes(p=>p.filter(x=>x.id!==q.id));}} color="#ef4444">Delete</Btn>}
+                {userIsManager(user)&&q.status==="booked"&&<Btn small outline onClick={()=>{if(window.confirm(`Delete quote ${q.id}? This cannot be undone.`))setQuotes(p=>p.filter(x=>x.id!==q.id));}} color="#ef4444">Delete</Btn>}
               </div>
             </div>
           </Card>);
@@ -1567,7 +1572,7 @@ function FreelancersPage({freelancers,setFreelancers,projects,quotes,user}){
   const [editing,setEditing]=useState(null);
   const [confirmRemove,setConfirmRemove]=useState(null);
   const [quoteModal,setQuoteModal]=useState(null);  // freelancer to link quote to
-  const canManage=isManager(user.role);
+  const canManage=userIsManager(user);
   const isFreelancerUser=isFreelancer(user.role);
 
   const DEPARTMENTS=["Audio","Lighting","AV/LED","Rigging","Staging","Power","General"];
@@ -2646,6 +2651,7 @@ function QRPrintSheet({units,equipTypes,onClose}){
     </Modal>
   );
 }
+
 // ── LOAD LIST PDF ──────────────────────────────────────────────────────────────
 function printLoadList(quote,units,equipTypes,crew){
   const win=window.open("","_blank");
@@ -2916,7 +2922,7 @@ function Crew({crew,setCrew,projects,user}){
   const [editing,setEditing]=useState(null);
   const [confirmRemove,setConfirmRemove]=useState(null);
   const [accessModal,setAccessModal]=useState(null);
-  const canEdit=isManager(user.role);
+  const canEdit=userIsManager(user);
 
   const ACCESS_ROLES=[
     {value:"admin",        label:"Manager",         desc:"Full access — create quotes, manage crew, all settings"},
@@ -3025,8 +3031,9 @@ function Crew({crew,setCrew,projects,user}){
             {editing.isNew&&(
               <div style={{background:"#0d1117",border:"1px solid #ff8c0033",borderRadius:8,padding:"10px 14px"}}>
                 <div style={{color:"#ff8c00",fontSize:12,fontWeight:700,marginBottom:4}}>Login Credentials</div>
-                <div style={{color:"#6b7280",fontSize:12}}>Default password will be: <span style={{fontFamily:"monospace",color:"#e5e7eb"}}>{editing.name?editing.name.toLowerCase().split(" ")[0]+"123":"firstname123"}</span></div>
-                <div style={{color:"#4b5563",fontSize:11,marginTop:2}}>They can change it in ⚙️ My Settings after first login.</div>
+                <div style={{color:"#6b7280",fontSize:12,marginBottom:6}}>Set a password for this staff member:</div>
+                <TI label="" value={editing.initPassword||editing.name?editing.name.toLowerCase().split(" ")[0]+"123":""} onChange={v=>setEditing(p=>({...p,initPassword:v}))} placeholder="e.g. staffname123" mono/>
+                <div style={{color:"#4b5563",fontSize:11,marginTop:4}}>Staff member can change it in ⚙️ My Settings after first login. Email: {editing.email||`${(editing.name||"").toLowerCase().split(" ")[0]}@eventech.co.za`}</div>
               </div>
             )}
             <div style={{display:"flex",gap:10}}>
@@ -3041,7 +3048,7 @@ function Crew({crew,setCrew,projects,user}){
                     id:Date.now(),
                     name:c.name,
                     email:c.email||`${firstName}@eventech.co.za`,
-                    password:`${firstName}123`,
+                    password:c.initPassword||`${firstName}123`,
                     role:c.appRole||"crew",
                     avatar:c.name.slice(0,2).toUpperCase(),
                   });
@@ -3248,7 +3255,7 @@ function UserSettingsModal({user,onClose,onSave}){
 function PrepSheetsPage({prepSheets,setPrepSheets,user}){
   const [showAdd,setShowAdd]=useState(false);
   const [preview,setPreview]=useState(null);
-  const canUpload=isManager(user.role); // only Wynand & Herman
+  const canUpload=userIsManager(user); // only Wynand & Herman
   const isWarehouse=user.role==="warehouse";
 
   const markRead=(id)=>setPrepSheets(p=>p.map(s=>s.id===id?{...s,readBy:[...(s.readBy||[]),{name:user.name,at:new Date().toISOString()}]}:s));
@@ -3412,7 +3419,11 @@ function UploadPrepForm({user,onSave,onCancel}){
   );
 }
 
-// ── localStorage helpers ─────────────────────────────────────────────────────
+// ── Supabase imports ─────────────────────────────────────────────────────────
+// Import is handled via script tag in production; in dev via npm
+// All DB ops go through db.js
+
+// ── localStorage helpers (fallback while loading) ───────────────────────────── ─────────────────────────────────────────────────────
 const INIT_CREW_DATA = [
   {id:1,name:"Wynand",  role:"Production Manager",phone:"+27 82 000 0001",email:"wynand@eventech.co.za",  skills:["PM","Lighting","Audio"],    status:"available"},
   {id:2,name:"Herman",  role:"Production Manager",phone:"+27 82 000 0002",email:"herman@eventech.co.za",  skills:["PM","AV","Staging"],        status:"available"},
@@ -3439,6 +3450,31 @@ function usePersisted(key, fallback){
   return [val,setPersisted];
 }
 
+// ── Supabase real-time sync hook ──────────────────────────────────────────────
+function useSupabaseTable(tableName, transform=(r)=>r) {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    // Initial fetch
+    window._sb?.from(tableName).select('*').then(({data:rows,error})=>{
+      if(!error && rows) setData(rows.map(transform));
+      setLoading(false);
+    });
+    // Real-time subscription
+    if(!window._sb) return;
+    const channel = window._sb.channel(`rt-${tableName}-${Date.now()}`)
+      .on('postgres_changes',{event:'*',schema:'public',table:tableName},()=>{
+        window._sb.from(tableName).select('*').then(({data:rows})=>{
+          if(rows) setData(rows.map(transform));
+        });
+      }).subscribe();
+    return ()=>{ window._sb.removeChannel(channel); };
+  },[tableName]);
+
+  return [data, setData, loading];
+}
+
 export default function App(){
   const [user,setUser]=useState(()=>{
     try{ const s=localStorage.getItem("et_session"); return s?JSON.parse(s):null; }catch{ return null; }
@@ -3456,7 +3492,7 @@ export default function App(){
   const [dryHireItems,setDryHireItems]=usePersisted("dryHireItems",  []);
   const [stockTakes,setStockTakes]   = usePersisted("stockTakes",    []);
   const [quotes,setQuotes]           = usePersisted("quotes",        INIT_QUOTES);
-  const [prepSheets,setPrepSheets]  = usePersisted("prepSheets",    []);
+  const [prepSheets,setPrepSheets]   = usePersisted("prepSheets",    []);
 
   const login=(u)=>{ setUser(u); try{localStorage.setItem("et_session",JSON.stringify(u));}catch{} };
   const logout=()=>{ setUser(null); setTab("dashboard"); try{localStorage.removeItem("et_session");}catch{} };
@@ -3472,7 +3508,7 @@ export default function App(){
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
         {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} user={user}/>}
-        {tab==="quotes"   &&<QuotesPage quotes={quotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
+        {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
         {tab==="stocktake" &&<StockTakePage stockTakes={stockTakes} setStockTakes={setStockTakes} units={units} equipTypes={equipTypes} quotes={quotes} user={user}/>}
