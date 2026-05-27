@@ -2592,10 +2592,36 @@ function QRPrintSheet({units,equipTypes,onClose}){
   const [filterType,setFilterType]=useState("all");
   const filtered=filterType==="all"?units:units.filter(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); return t?.category===filterType; });
 
+  const makeQRsvg=(code,size=80)=>{
+    let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
+    const n=10,cell=size/n;
+    const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
+    [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
+    const rects=cells.map((on,i)=>on?`<rect x="${(i%n)*cell}" y="${Math.floor(i/n)*cell}" width="${cell-1}" height="${cell-1}" fill="#000"/>`:"").join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" style="background:#fff">${rects}</svg>`;
+  };
+
   const print=()=>{
     const win=window.open("","_blank");
-    const rows=filtered.map(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); return`<div style="display:inline-block;border:1px solid #ccc;border-radius:8px;padding:12px;margin:8px;text-align:center;width:130px;vertical-align:top"><div style="font-size:11px;font-weight:700;margin-bottom:4px">${t?.name||""}</div><div style="font-size:10px;color:#666;margin-bottom:6px">${u.serial}</div><div style="font-family:monospace;font-size:12px;font-weight:800;background:#f0f0f0;padding:4px 8px;border-radius:4px">${u.barcode}</div><div style="font-size:9px;color:#999;margin-top:4px">${t?.category||""}</div></div>`; }).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Eventech QR Sheet</title><style>body{font-family:sans-serif;padding:20px}@media print{button{display:none}}</style></head><body><h2 style="margin-bottom:4px">Eventech — Asset QR Codes</h2><p style="color:#666;font-size:12px">Printed: ${new Date().toLocaleDateString("en-ZA")} · ${filtered.length} assets</p><hr/><div>${rows}</div><br/><button onclick="window.print()" style="padding:10px 20px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🖨️ Print</button></body></html>`);
+    const rows=filtered.map(u=>{
+      const t=equipTypes.find(x=>x.id===u.typeId);
+      const qr=makeQRsvg(u.barcode,80);
+      return `<div style="display:inline-block;border:1px solid #ccc;border-radius:8px;padding:10px;margin:6px;text-align:center;width:120px;vertical-align:top;page-break-inside:avoid">
+        <div style="font-size:10px;font-weight:700;margin-bottom:3px;word-break:break-word">${t?.name||""}</div>
+        ${qr}
+        <div style="font-family:monospace;font-size:10px;font-weight:800;background:#f5f5f5;padding:3px 6px;border-radius:4px;margin-top:4px">${u.barcode}</div>
+        <div style="font-size:9px;color:#666;margin-top:2px">${u.serial}</div>
+        <div style="font-size:8px;color:#999;margin-top:1px">${t?.category||""}</div>
+      </div>`;
+    }).join("");
+    win.document.write(`<!DOCTYPE html><html><head><title>Eventech QR Sheet</title>
+      <style>body{font-family:sans-serif;padding:20px}@media print{button{display:none}.page-break{page-break-after:always}}</style>
+      </head><body>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH</h2><p style="margin:2px 0;color:#666;font-size:12px">Asset QR Code Sheet — ${new Date().toLocaleDateString("en-ZA")} — ${filtered.length} assets</p></div>
+        <button onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ Print</button>
+      </div>
+      <hr/><div>${rows}</div></body></html>`);
     win.document.close();
   };
 
@@ -2620,7 +2646,6 @@ function QRPrintSheet({units,equipTypes,onClose}){
     </Modal>
   );
 }
-
 // ── LOAD LIST PDF ──────────────────────────────────────────────────────────────
 function printLoadList(quote,units,equipTypes,crew){
   const win=window.open("","_blank");
