@@ -250,7 +250,6 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
   );
 }
 
-// SCAN OUT / IN
 function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,user}){
   const [phase,setPhase]=useState("start");
   const [activeQ,setActiveQ]=useState(null);
@@ -280,7 +279,9 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
       return;
     }
     try{
-      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}});
+      // Explicitly request permission first
+      await navigator.permissions.query({name:"camera"}).catch(()=>{});
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}});
       streamRef.current=stream;
       setShowCamera(true);
       // Wait for modal to render then attach stream
@@ -519,7 +520,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
                     <div style={{color:"#e5e7eb",fontWeight:600,fontSize:13}}>{q.client}</div>
                     <div style={{color:"#6b7280",fontSize:12,marginTop:2}}>📅 {q.startDate} → {q.endDate}</div>
                     {q.notes&&<div style={{color:"#4b5563",fontSize:11,marginTop:3,fontStyle:"italic"}}>{q.notes}</div>}
-                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to start scanning this quote</div>
+                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to scan more items onto this quote</div>
                   </div>
                 ))}
               </div>
