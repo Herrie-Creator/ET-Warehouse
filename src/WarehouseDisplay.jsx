@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 
-const CAT_COLORS = { Audio:"#3b82f6", Lighting:"#f59e0b", AV:"#8b5cf6", Rigging:"#10b981", Staging:"#ef4444" };
-const ST_COLORS  = { planning:"#6b7280", confirmed:"#3b82f6", active:"#10b981", completed:"#4b5563", cancelled:"#ef4444" };
+const ST_COLORS = { planning:"#6b7280", confirmed:"#3b82f6", active:"#10b981", completed:"#4b5563", cancelled:"#ef4444" };
 
 function read(key, fallback) {
   try {
@@ -32,24 +31,30 @@ function StatCard({ label, value, sub, color }) {
 export default function WarehouseDisplay() {
   const [data, setData] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [now, setNow] = useState(new Date());
+
+  // Tick clock every second
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
 
   function loadData() {
-    const units       = read("units",       []);
-    const equipTypes  = read("equipTypes",  []);
-    const projects    = read("projects",    []);
-    const quotes      = read("quotes",      []);
-    const faultReports= read("faultReports",[]);
+    const units        = read("units",        []);
+    const equipTypes   = read("equipTypes",   []);
+    const projects     = read("projects",     []);
+    const quotes       = read("quotes",       []);
+    const faultReports = read("faultReports", []);
     setData({ units, equipTypes, projects, quotes, faultReports });
     setLastUpdated(new Date());
   }
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000); // refresh every 10s
+    const interval = setInterval(loadData, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  // Also refresh when localStorage changes from another tab
   useEffect(() => {
     const handler = () => loadData();
     window.addEventListener("storage", handler);
@@ -77,17 +82,30 @@ export default function WarehouseDisplay() {
     .slice(0, 6);
 
   const today = new Date().toISOString().split("T")[0];
-  const overdue  = quotes.filter(q => (q.status === "out" || q.status === "partially_returned") && q.endDate < today);
-  const dueSoon  = quotes.filter(q => (q.status === "out" || q.status === "partially_returned") && q.endDate >= today && q.endDate <= new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0]);
+  const overdue   = quotes.filter(q => (q.status === "out" || q.status === "partially_returned") && q.endDate < today);
+  const dueSoon   = quotes.filter(q => (q.status === "out" || q.status === "partially_returned") && q.endDate >= today && q.endDate <= new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0]);
   const openFaults = faultReports.filter(f => f.status === "open" || f.status === "acknowledged").length;
 
   const activeQuotes = quotes.filter(q => q.status === "out" || q.status === "partially_returned");
 
+  // Maintenance units — join with equipTypes for the name
+  const maintUnitsDetail = units
+    .filter(u => u.status === "maintenance")
+    .map(u => {
+      const type = equipTypes.find(t => t.id === u.typeId);
+      // Find any open fault report linked to this unit
+      const fault = faultReports.find(f => f.unitId === u.id || f.assetId === u.id || f.assetBarcode === u.barcode || f.assetName === (type?.name));
+      return { ...u, typeName: type?.name || "Unknown Asset", faultNote: fault?.description || fault?.notes || fault?.fault || "" };
+    });
+
+  const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const dateStr = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0d1117", fontFamily: "'DM Sans', sans-serif", color: "#e5e7eb", padding: "28px 32px", boxSizing: "border-box" }}>
+    <div style={{ minHeight: "100vh", background: "#0d1117", fontFamily: "'DM Sans', sans-serif", color: "#e5e7eb", padding: "24px 32px", boxSizing: "border-box" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
@@ -96,11 +114,14 @@ export default function WarehouseDisplay() {
           </div>
           <div style={{ color: "#6b7280", fontSize: 14, marginTop: 4, marginLeft: 24 }}>Eventech Warehouse Management · Live View</div>
         </div>
+
+        {/* Clock + Date */}
         <div style={{ textAlign: "right" }}>
-          <div style={{ color: "#fff", fontSize: 22, fontWeight: 800, fontFamily: "monospace" }}>
-            {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+          <div style={{ color: "#fff", fontSize: 36, fontWeight: 900, fontFamily: "monospace", letterSpacing: 2, lineHeight: 1 }}>
+            {timeStr}
           </div>
-          <div style={{ color: "#4b5563", fontSize: 12, marginTop: 2 }}>
+          <div style={{ color: "#9ca3af", fontSize: 14, fontWeight: 600, marginTop: 4 }}>{dateStr}</div>
+          <div style={{ color: "#374151", fontSize: 11, marginTop: 3 }}>
             Updated {lastUpdated?.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </div>
         </div>
@@ -136,14 +157,14 @@ export default function WarehouseDisplay() {
       )}
 
       {/* Stat Cards */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <StatCard label="Total Assets"  value={totalUnits} sub="individual units tracked"  color="#ff8c00" />
         <StatCard label="Available"     value={availUnits} sub="ready in warehouse"         color="#10b981" />
         <StatCard label="Out on Hire"   value={outUnits}   sub="currently with clients"     color="#f59e0b" />
         <StatCard label="Maintenance"   value={maintUnits} sub="flagged for service"        color="#ef4444" />
       </div>
 
-      {/* Main Grid */}
+      {/* Main Grid — 3 columns */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
 
         {/* Upcoming Projects */}
@@ -164,35 +185,13 @@ export default function WarehouseDisplay() {
           ))}
         </div>
 
-        {/* Assets by Category */}
-        <div style={{ background: "#161b27", border: "1px solid #2a2a3a", borderRadius: 14, padding: 20 }}>
-          <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 14 }}>Assets by Category</div>
-          {["Audio", "Lighting", "AV", "Rigging", "Staging"].map(cat => {
-            const typeIds = equipTypes.filter(t => t.category === cat).map(t => t.id);
-            const catUnits = units.filter(u => typeIds.includes(u.typeId));
-            const total = catUnits.length, avail = catUnits.filter(u => u.status === "available").length;
-            const pct = total ? Math.round(avail / total * 100) : 0;
-            return (
-              <div key={cat} style={{ marginBottom: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                  <span style={{ color: "#e5e7eb", fontSize: 14, fontWeight: 600 }}>{cat}</span>
-                  <span style={{ color: "#6b7280", fontSize: 13 }}>{avail}/{total} avail</span>
-                </div>
-                <div style={{ background: "#1f2937", borderRadius: 4, height: 8 }}>
-                  <div style={{ width: `${pct}%`, height: 8, borderRadius: 4, background: CAT_COLORS[cat], transition: "width 0.5s ease" }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
         {/* Active Hires */}
         <div style={{ background: "#161b27", border: "1px solid #2a2a3a", borderRadius: 14, padding: 20 }}>
           <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 14 }}>
             Active Hires ({activeQuotes.length})
           </div>
           {activeQuotes.length === 0 && <div style={{ color: "#4b5563", fontSize: 13 }}>No active hires</div>}
-          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+          <div style={{ maxHeight: 340, overflowY: "auto" }}>
             {activeQuotes.map(q => {
               const isOverdue = q.endDate < today;
               return (
@@ -210,10 +209,44 @@ export default function WarehouseDisplay() {
             })}
           </div>
         </div>
+
+        {/* Maintenance */}
+        <div style={{ background: "#161b27", border: `1px solid ${maintUnitsDetail.length > 0 ? "#ef444433" : "#2a2a3a"}`, borderRadius: 14, padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+            <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>
+              🔧 Under Maintenance
+            </div>
+            <span style={{ background: maintUnitsDetail.length > 0 ? "#ef444422" : "#1f293766", color: maintUnitsDetail.length > 0 ? "#ef4444" : "#4b5563", border: `1px solid ${maintUnitsDetail.length > 0 ? "#ef444444" : "#374151"}`, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>
+              {maintUnitsDetail.length}
+            </span>
+          </div>
+          {maintUnitsDetail.length === 0 && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 0", gap: 8 }}>
+              <div style={{ fontSize: 28 }}>✅</div>
+              <div style={{ color: "#10b981", fontSize: 13, fontWeight: 600 }}>All clear — no units in maintenance</div>
+            </div>
+          )}
+          <div style={{ maxHeight: 340, overflowY: "auto" }}>
+            {maintUnitsDetail.map(u => (
+              <div key={u.id} style={{ padding: "10px 0", borderBottom: "1px solid #1f2937" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: "#e5e7eb", fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.typeName}</div>
+                    <div style={{ color: "#6b7280", fontSize: 12, marginTop: 2, fontFamily: "monospace" }}>{u.assetNo || u.id}</div>
+                    {u.faultNote && (
+                      <div style={{ color: "#f59e0b", fontSize: 11, marginTop: 3, fontStyle: "italic" }}>"{u.faultNote}"</div>
+                    )}
+                  </div>
+                  <Badge label="maintenance" color="#ef4444" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: 20, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
+      <div style={{ marginTop: 16, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
         <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", animation: "pulse 2s infinite" }} />
         <div style={{ color: "#374151", fontSize: 12 }}>Auto-refreshes every 10 seconds · Data synced from main app</div>
       </div>
