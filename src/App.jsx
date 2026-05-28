@@ -5,7 +5,7 @@ const LOGO_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAABECAYAAADw
 const USERS = [
   { id:1, name:"Wynand",   email:"wynand@eventech.co.za",   password:"wynand123",   role:"admin",        avatar:"WY" },
   { id:2, name:"Herman",   email:"herman@eventech.co.za",   password:"herman123",   role:"admin",        avatar:"HE" },
-  { id:3, name:"Remerus", email:"remerus@eventech.co.za", password:"remerus123", role:"warehouse",    avatar:"RH" },
+  { id:3, name:"Remerus", email:"rhemerus@eventech.co.za", password:"rhemerus123", role:"warehouse",    avatar:"RH" },
   { id:4, name:"Liam",     email:"liam@eventech.co.za",     password:"liam123",     role:"hod_audio",    avatar:"LI" },
   { id:5, name:"Pat",      email:"pat@eventech.co.za",      password:"pat123",      role:"hod_lighting", avatar:"PA" },
   { id:6, name:"Paulos",   email:"paulos@eventech.co.za",   password:"paulos123",   role:"hod_rigging",  avatar:"PL" },
@@ -20,7 +20,12 @@ const INIT_UNITS = [{"id": "U1001", "typeId": 101, "serial": "A39001", "barcode"
 // Cable stock — tracked by type+qty not individual units
 const INIT_CABLE_STOCK = [{"id": "CB001", "typeId": 252, "barcode": "BC-CJJK10", "qty": 4, "available": 4, "notes": "Jack-Jack 10M Instrument Cable"}, {"id": "CB002", "typeId": 253, "barcode": "BC-CJJK02", "qty": 9, "available": 9, "notes": "Jack-Jack 2M Instrument Cable"}, {"id": "CB003", "typeId": 254, "barcode": "BC-CJJK05", "qty": 16, "available": 16, "notes": "Jack-Jack 5M Instrument Cable"}, {"id": "CB004", "typeId": 255, "barcode": "BC-CJJK4W", "qty": 1, "available": 1, "notes": "Jack-Jack 4-Way Loom"}, {"id": "CB005", "typeId": 256, "barcode": "BC-CJAN50", "qty": 8, "available": 8, "notes": "Janus 50M"}, {"id": "CB006", "typeId": 257, "barcode": "BC-CJAN20", "qty": 44, "available": 44, "notes": "Janus 20M"}, {"id": "CB007", "typeId": 258, "barcode": "BC-CJAN10", "qty": 136, "available": 136, "notes": "Janus 10M"}, {"id": "CB008", "typeId": 259, "barcode": "BC-CJAN05", "qty": 150, "available": 150, "notes": "Janus 5M"}, {"id": "CB009", "typeId": 260, "barcode": "BC-CJAN25", "qty": 109, "available": 109, "notes": "Janus 2.5M"}, {"id": "CB010", "typeId": 261, "barcode": "BC-CPLGP", "qty": 17, "available": 17, "notes": "Plugstrip Plastic"}, {"id": "CB011", "typeId": 262, "barcode": "BC-CPLGS", "qty": 5, "available": 5, "notes": "Plugstrip Steel"}, {"id": "CB012", "typeId": 263, "barcode": "BC-CPCA", "qty": 8, "available": 8, "notes": "PC Audio Cable"}, {"id": "CB013", "typeId": 264, "barcode": "BC-CPWC", "qty": 26, "available": 26, "notes": "PowerCon Cable"}, {"id": "CB014", "typeId": 265, "barcode": "BC-CPWCL", "qty": 15, "available": 15, "notes": "PowerCon Link"}, {"id": "CB015", "typeId": 266, "barcode": "BC-CTRC", "qty": 17, "available": 17, "notes": "TrueCon Cable"}, {"id": "CB016", "typeId": 267, "barcode": "BC-CTRCL", "qty": 30, "available": 30, "notes": "TrueCon Link"}, {"id": "CB017", "typeId": 268, "barcode": "BC-CXLR50", "qty": 1, "available": 1, "notes": "XLR 50M Signal Cable"}, {"id": "CB018", "typeId": 269, "barcode": "BC-CXLR20", "qty": 4, "available": 4, "notes": "XLR 20M Signal Cable"}, {"id": "CB019", "typeId": 270, "barcode": "BC-CXLR10", "qty": 166, "available": 166, "notes": "XLR 10M Signal Cable"}, {"id": "CB020", "typeId": 271, "barcode": "BC-CXLR05", "qty": 104, "available": 104, "notes": "XLR 5M Signal Cable"}, {"id": "CB021", "typeId": 272, "barcode": "BC-CXLR02", "qty": 56, "available": 56, "notes": "XLR 2M Signal Cable"}, {"id": "CB022", "typeId": 273, "barcode": "BC-CXLR01", "qty": 51, "available": 51, "notes": "XLR 1M Signal Cable"}, {"id": "CB023", "typeId": 274, "barcode": "BC-CHDMI", "qty": 24, "available": 24, "notes": "HDMI Cable"}, {"id": "CB024", "typeId": 275, "barcode": "BC-CNL4B", "qty": 6, "available": 6, "notes": "NL4 Barrel"}, {"id": "CB025", "typeId": 276, "barcode": "BC-CBNCL", "qty": 53, "available": 53, "notes": "BNC Link"}, {"id": "CB026", "typeId": 277, "barcode": "BC-CBNCN", "qty": 8, "available": 8, "notes": "BNC Long"}, {"id": "CB027", "typeId": 278, "barcode": "BC-CCAT6P", "qty": 25, "available": 25, "notes": "CAT6 Patch Cable"}, {"id": "CB028", "typeId": 279, "barcode": "BC-CCAT610", "qty": 10, "available": 10, "notes": "CAT6 10M"}, {"id": "CB029", "typeId": 280, "barcode": "BC-CCAT615", "qty": 1, "available": 1, "notes": "CAT6 15M"}, {"id": "CB030", "typeId": 281, "barcode": "BC-CCAT620", "qty": 20, "available": 20, "notes": "CAT6 20M"}, {"id": "CB031", "typeId": 282, "barcode": "BC-CCAT625", "qty": 20, "available": 20, "notes": "CAT6 25M"}, {"id": "CB032", "typeId": 283, "barcode": "BC-CCAT630", "qty": 10, "available": 10, "notes": "CAT6 30M"}, {"id": "CB033", "typeId": 284, "barcode": "BC-CCAT635", "qty": 1, "available": 1, "notes": "CAT6 35M"}, {"id": "CB034", "typeId": 285, "barcode": "BC-CCAT640", "qty": 2, "available": 2, "notes": "CAT6 40M"}, {"id": "CB035", "typeId": 286, "barcode": "BC-CCAT650", "qty": 10, "available": 10, "notes": "CAT6 50M"}, {"id": "CB036", "typeId": 287, "barcode": "BC-CCAT680", "qty": 2, "available": 2, "notes": "CAT6 80M"}, {"id": "CB037", "typeId": 288, "barcode": "BC-CCAT6100", "qty": 1, "available": 1, "notes": "CAT6 100M"}, {"id": "CB038", "typeId": 289, "barcode": "BC-CCAT6D100", "qty": 1, "available": 1, "notes": "CAT6 100M Drum"}, {"id": "CB039", "typeId": 290, "barcode": "BC-CCAT6D70", "qty": 1, "available": 1, "notes": "Dual CAT6 70M Drum"}, {"id": "CB040", "typeId": 291, "barcode": "BC-CSP7", "qty": 38, "available": 38, "notes": "SP.7 Cable"}, {"id": "CB041", "typeId": 292, "barcode": "BC-CSP25", "qty": 16, "available": 16, "notes": "SP25 Cable"}, {"id": "CB042", "typeId": 293, "barcode": "BC-CSP15", "qty": 6, "available": 6, "notes": "SP15 Cable"}, {"id": "CB043", "typeId": 294, "barcode": "BC-CSP10", "qty": 6, "available": 6, "notes": "SP10 Cable"}, {"id": "CB044", "typeId": 295, "barcode": "BC-CSP5", "qty": 6, "available": 6, "notes": "SP5 Cable"}, {"id": "CB045", "typeId": 296, "barcode": "BC-CSPYS", "qty": 11, "available": 11, "notes": "SP Y-Split"}, {"id": "CB046", "typeId": 297, "barcode": "BC-CDOFIL", "qty": 6, "available": 6, "notes": "DO Fill Cable"}, {"id": "CB047", "typeId": 298, "barcode": "BC-CDOSUB", "qty": 2, "available": 2, "notes": "DO Sub LA8 Cable"}, {"id": "CB048", "typeId": 299, "barcode": "BC-CDO14", "qty": 2, "available": 2, "notes": "DO 14 Cable"}, {"id": "CB049", "typeId": 300, "barcode": "BC-CDO19", "qty": 2, "available": 2, "notes": "DO 19 Cable"}, {"id": "CB050", "typeId": 301, "barcode": "BC-CDO20", "qty": 2, "available": 2, "notes": "DO 20 Cable"}, {"id": "CB051", "typeId": 302, "barcode": "BC-CDO25", "qty": 6, "available": 6, "notes": "DO 25 Cable"}, {"id": "CB052", "typeId": 303, "barcode": "BC-CIEC", "qty": 37, "available": 37, "notes": "IEC Kettle Cord"}, {"id": "CB053", "typeId": 304, "barcode": "BC-CFIB100A", "qty": 4, "available": 4, "notes": "100m Fibre Optic A"}, {"id": "CB054", "typeId": 305, "barcode": "BC-CFIB50", "qty": 2, "available": 2, "notes": "50m Fibre Optic"}, {"id": "CB055", "typeId": 306, "barcode": "BC-CFIB100B", "qty": 2, "available": 2, "notes": "100m Fibre Optic B"}, {"id": "CB056", "typeId": 307, "barcode": "BC-CPTC39", "qty": 13, "available": 13, "notes": "Plugtop to TrueCon 3.9"}, {"id": "CB057", "typeId": 308, "barcode": "BC-CPTC29", "qty": 21, "available": 21, "notes": "Plugtop to TrueCon 2.9"}, {"id": "CB058", "typeId": 309, "barcode": "BC-CPTL39", "qty": 255, "available": 255, "notes": "Plugtop Links 3.9"}, {"id": "CB059", "typeId": 310, "barcode": "BC-CPTL29", "qty": 255, "available": 255, "notes": "Plugtop Links 2.9"}, {"id": "CB060", "typeId": 311, "barcode": "BC-CC5B2039", "qty": 13, "available": 13, "notes": "CAT5 20m Black 3.9"}, {"id": "CB061", "typeId": 312, "barcode": "BC-CC5B2029", "qty": 21, "available": 21, "notes": "CAT5 20m Black 2.9"}, {"id": "CB062", "typeId": 313, "barcode": "BC-CC5LB39", "qty": 245, "available": 245, "notes": "CAT5 Links Black 3.9"}, {"id": "CB063", "typeId": 314, "barcode": "BC-CC5LB29", "qty": 255, "available": 255, "notes": "CAT5 Links Black 2.9"}, {"id": "CB064", "typeId": 315, "barcode": "BC-CDMX5P02", "qty": 51, "available": 51, "notes": "DMX 5-Pin 2M"}, {"id": "CB065", "typeId": 316, "barcode": "BC-CDMX5P03", "qty": 52, "available": 52, "notes": "DMX 5-Pin 3M"}, {"id": "CB066", "typeId": 317, "barcode": "BC-CDMX5P05", "qty": 144, "available": 144, "notes": "DMX 5-Pin 5M"}, {"id": "CB067", "typeId": 318, "barcode": "BC-CDMX5P10", "qty": 57, "available": 57, "notes": "DMX 5-Pin 10M"}, {"id": "CB068", "typeId": 319, "barcode": "BC-CDMX5P20", "qty": 33, "available": 33, "notes": "DMX 5-Pin 20M"}, {"id": "CB069", "typeId": 320, "barcode": "BC-CDMX5P30", "qty": 5, "available": 5, "notes": "DMX 5-Pin 30M"}, {"id": "CB070", "typeId": 321, "barcode": "BC-CDMX5P50", "qty": 5, "available": 5, "notes": "DMX 5-Pin 50M"}, {"id": "CB071", "typeId": 322, "barcode": "BC-CDMX5P80", "qty": 4, "available": 4, "notes": "DMX 5-Pin 80M"}, {"id": "CB072", "typeId": 323, "barcode": "BC-CDMX5P100", "qty": 4, "available": 4, "notes": "DMX 5-Pin 100M"}, {"id": "CB073", "typeId": 324, "barcode": "BC-CMLT4W50", "qty": 1, "available": 1, "notes": "50M Multi 4-Way"}, {"id": "CB074", "typeId": 325, "barcode": "BC-CFIJ", "qty": 21, "available": 21, "notes": "Fan-In Janus"}, {"id": "CB075", "typeId": 326, "barcode": "BC-CFOJ", "qty": 30, "available": 30, "notes": "Fan-Out Janus"}, {"id": "CB076", "typeId": 327, "barcode": "BC-CCAT6SP", "qty": 1, "available": 1, "notes": "CAT6 Spool"}, {"id": "CB077", "typeId": 328, "barcode": "BC-CSOCO20", "qty": 17, "available": 17, "notes": "20M Socopex"}, {"id": "CB078", "typeId": 329, "barcode": "BC-CSOCO30", "qty": 4, "available": 4, "notes": "30M Socopex"}, {"id": "CB079", "typeId": 330, "barcode": "BC-CSOCO40", "qty": 5, "available": 5, "notes": "40M Socopex"}, {"id": "CB080", "typeId": 331, "barcode": "BC-CSOCO10", "qty": 4, "available": 4, "notes": "10M Socopex"}, {"id": "CB081", "typeId": 332, "barcode": "BC-CSOCO05", "qty": 2, "available": 2, "notes": "5M Socopex"}, {"id": "CB082", "typeId": 333, "barcode": "BC-CSOCODB", "qty": 6, "available": 6, "notes": "15A Socopex Distro Box"}];
 
-const INIT_VEHICLES = [];
+const INIT_VEHICLES = [
+  { id:"V001", name:"Ford Transit Luton",    reg:"GP 123-456", type:"Truck",  capacity:"3 Ton",   driver:null, status:"available" },
+  { id:"V002", name:"Mercedes Sprinter",     reg:"GP 789-012", type:"Van",    capacity:"1.5 Ton", driver:null, status:"available" },
+  { id:"V003", name:"Isuzu NPS 300",         reg:"GP 345-678", type:"Truck",  capacity:"5 Ton",   driver:null, status:"available" },
+  { id:"V004", name:"VW Crafter LWB",        reg:"GP 901-234", type:"Van",    capacity:"1 Ton",   driver:null, status:"available" },
+];
 
 const INIT_PROJECTS = [];
 
@@ -29,6 +34,8 @@ const INIT_QUOTES = [];
 const CAT_COLORS  = { Audio:"#ff8c00", Lighting:"#8b5cf6", Video:"#06b6d4", Rigging:"#ef4444", Staging:"#10b981" };
 const ST_COLORS   = { available:"#10b981", out:"#ff8c00", maintenance:"#6b7280", booked:"#3b82f6", returned:"#10b981", partially_returned:"#ff8c00", active:"#ff8c00", upcoming:"#8b5cf6", completed:"#6b7280" };
 const AV_COLORS   = ["#ff8c00","#8b5cf6","#10b981","#3b82f6","#ef4444","#06b6d4"];
+const MANAGER_EMAILS = ["wynand@eventech.co.za","herman@eventech.co.za"];
+const userIsManager  = (u) => u && (u.role==="admin" || MANAGER_EMAILS.includes((u.email||"").toLowerCase()));
 const ROLE_LABELS = { admin:"Manager", warehouse:"Warehouse", hod_audio:"Audio HOD", hod_lighting:"Lighting HOD", hod_rigging:"Structures HOD", hod_power:"Power HOD", hod_av:"AV/LED HOD", crew:"Crew", freelancer:"Freelancer" };
 const HOD_ROLES = ["hod_audio","hod_lighting","hod_rigging","hod_power","hod_av"];
 const canReportFault = (role) => HOD_ROLES.includes(role) || role==="admin" || role==="warehouse";
@@ -250,6 +257,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
   );
 }
 
+// SCAN OUT / IN
 function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,user}){
   const [phase,setPhase]=useState("start");
   const [activeQ,setActiveQ]=useState(null);
@@ -279,8 +287,6 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
       return;
     }
     try{
-      // Explicitly request permission first
-      await navigator.permissions.query({name:"camera"}).catch(()=>{});
       const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}}});
       streamRef.current=stream;
       setShowCamera(true);
@@ -520,7 +526,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
                     <div style={{color:"#e5e7eb",fontWeight:600,fontSize:13}}>{q.client}</div>
                     <div style={{color:"#6b7280",fontSize:12,marginTop:2}}>📅 {q.startDate} → {q.endDate}</div>
                     {q.notes&&<div style={{color:"#4b5563",fontSize:11,marginTop:3,fontStyle:"italic"}}>{q.notes}</div>}
-                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to scan more items onto this quote</div>
+                    <div style={{color:"#10b981",fontSize:11,marginTop:4,fontWeight:600}}>👆 Tap to add more items or check out</div>
                   </div>
                 ))}
               </div>
@@ -884,7 +890,7 @@ function VehicleAssignForm({quotes,setQuotes,vehicles,setVehicles,crew,activeQ,o
 }
 
 // QUOTES (read-only for warehouse, full view for admins)
-function QuotesPage({quotes,units,equipTypes,projects,user}){
+function QuotesPage({quotes,setQuotes,units,equipTypes,projects,user}){
   const [filter,setFilter]=useState("all"); const [detail,setDetail]=useState(null);
   const filtered=quotes.filter(q=>filter==="all"||quoteStatus(q)===filter);
   return(
@@ -914,9 +920,11 @@ function QuotesPage({quotes,units,equipTypes,projects,user}){
                 <div style={{color:"#6b7280",fontSize:13}}>📅 {q.startDate} → {q.endDate} · 📦 {q.lines.length} units{st!=="booked"&&` · ✅ ${ret}/${q.lines.length} returned`}</div>
                 <div style={{color:"#4b5563",fontSize:11,marginTop:5}}>Booked by {booker?.name}{q.checkedOutAt&&` · Out: ${fmt(q.checkedOutAt)}`}{q.checkedInAt&&` · In: ${fmt(q.checkedInAt)}`}</div>
               </div>
-              <div style={{display:"flex",gap:6}}>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 <Btn small outline onClick={()=>setDetail(q)} color="#ff8c00">Details</Btn>
                 {(q.status==="out"||q.status==="booked")&&<Btn small outline onClick={()=>printLoadList(q,units,equipTypes,[])} color="#10b981">🖨️ Load List</Btn>}
+                {userIsManager(user)&&q.status==="returned"&&<Btn small outline onClick={()=>{if(window.confirm(`Delete quote ${q.id}?`))setQuotes(p=>p.filter(x=>x.id!==q.id));}} color="#ef4444">Delete</Btn>}
+                {userIsManager(user)&&q.status==="booked"&&<Btn small outline onClick={()=>{if(window.confirm(`Delete quote ${q.id}? This cannot be undone.`))setQuotes(p=>p.filter(x=>x.id!==q.id));}} color="#ef4444">Delete</Btn>}
               </div>
             </div>
           </Card>);
@@ -954,7 +962,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
   const [confirmDelete,setConfirmDelete]=useState(null);
   const [showQRPrint,setShowQRPrint]=useState(false); // type to delete
   const importRef=useRef(null);
-  const canEdit=user.role==="admin"||user.role==="warehouse";
+  const canEdit=userIsManager(user)||user.role==="warehouse";
 
   const deleteType=(type)=>{
     // Remove the equipment type and all its units
@@ -985,7 +993,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
           <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print QR Sheet</Btn>
           {canEdit&&<><input ref={importRef} type="file" accept=".csv,.txt" onChange={handleImport} style={{display:"none"}}/>
           <Btn outline onClick={()=>importRef.current?.click()} color="#3b82f6">⬆ Import CSV</Btn></>}
-          {user.role==="admin"&&<Btn onClick={()=>setAddType(true)}>+ Add Type</Btn>}
+          {userIsManager(user)&&<Btn onClick={()=>setAddType(true)}>+ Add Type</Btn>}
         </div>
       </div>
       <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
@@ -1568,7 +1576,7 @@ function FreelancersPage({freelancers,setFreelancers,projects,quotes,user}){
   const [editing,setEditing]=useState(null);
   const [confirmRemove,setConfirmRemove]=useState(null);
   const [quoteModal,setQuoteModal]=useState(null);  // freelancer to link quote to
-  const canManage=isManager(user.role);
+  const canManage=userIsManager(user);
   const isFreelancerUser=isFreelancer(user.role);
 
   const DEPARTMENTS=["Audio","Lighting","AV/LED","Rigging","Staging","Power","General"];
@@ -1889,7 +1897,7 @@ function DryHirePage({dryHireItems,setDryHireItems,quotes,user}){
   const [showAdd,setShowAdd]=useState(false);
   const [detail,setDetail]=useState(null);
   const [filter,setFilter]=useState("all");
-  const canEdit=user.role==="admin"||user.role==="warehouse";
+  const canEdit=userIsManager(user)||user.role==="warehouse";
 
   const STATUS_C={active:"#f59e0b",returned:"#10b981",pending:"#3b82f6"};
 
@@ -2595,34 +2603,33 @@ function QRPrintSheet({units,equipTypes,onClose}){
 
   const makeQRsvg=(code,size=80)=>{
     let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
-    const n=10,cell=size/n;
+    const n=10,cell=Math.floor(size/n);
     const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
     [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
-    const rects=cells.map((on,i)=>on?`<rect x="${(i%n)*cell}" y="${Math.floor(i/n)*cell}" width="${cell-1}" height="${cell-1}" fill="#000"/>`:"").join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" style="background:#fff">${rects}</svg>`;
+    const rects=cells.map((on,i)=>on?`<rect x="${(i%n)*cell}" y="${Math.floor(i/n)*cell}" width="${cell}" height="${cell}" fill="#000"/>`:"").join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="background:#fff;display:block;margin:0 auto">${rects}</svg>`;
   };
-
   const print=()=>{
     const win=window.open("","_blank");
     const rows=filtered.map(u=>{
       const t=equipTypes.find(x=>x.id===u.typeId);
-      const qr=makeQRsvg(u.barcode,80);
-      return `<div style="display:inline-block;border:1px solid #ccc;border-radius:8px;padding:10px;margin:6px;text-align:center;width:120px;vertical-align:top;page-break-inside:avoid">
-        <div style="font-size:10px;font-weight:700;margin-bottom:3px;word-break:break-word">${t?.name||""}</div>
-        ${qr}
-        <div style="font-family:monospace;font-size:10px;font-weight:800;background:#f5f5f5;padding:3px 6px;border-radius:4px;margin-top:4px">${u.barcode}</div>
-        <div style="font-size:9px;color:#666;margin-top:2px">${u.serial}</div>
-        <div style="font-size:8px;color:#999;margin-top:1px">${t?.category||""}</div>
+      const qrSvg=makeQRsvg(u.barcode,90);
+      return `<div style="display:inline-block;border:2px solid #ddd;border-radius:8px;padding:10px;margin:6px;text-align:center;width:130px;vertical-align:top;font-family:sans-serif">
+        <div style="font-size:9px;font-weight:700;margin-bottom:4px;color:#333;word-break:break-word;min-height:24px">${t?.name||""}</div>
+        ${qrSvg}
+        <div style="font-family:monospace;font-size:9px;font-weight:800;background:#f5f5f5;padding:3px 4px;border-radius:4px;margin-top:5px;word-break:break-all">${u.barcode}</div>
+        <div style="font-size:8px;color:#666;margin-top:2px">${u.serial}</div>
+        <div style="font-size:7px;color:#999;margin-top:1px">${t?.category||""}</div>
       </div>`;
     }).join("");
     win.document.write(`<!DOCTYPE html><html><head><title>Eventech QR Sheet</title>
-      <style>body{font-family:sans-serif;padding:20px}@media print{button{display:none}.page-break{page-break-after:always}}</style>
-      </head><body>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH</h2><p style="margin:2px 0;color:#666;font-size:12px">Asset QR Code Sheet — ${new Date().toLocaleDateString("en-ZA")} — ${filtered.length} assets</p></div>
-        <button onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ Print</button>
-      </div>
-      <hr/><div>${rows}</div></body></html>`);
+      <style>body{font-family:sans-serif;padding:16px}@media print{.no-print{display:none}}</style></head><body>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH — Asset QR Codes</h2>
+        <p style="margin:2px 0;color:#666;font-size:11px">Printed: ${new Date().toLocaleDateString("en-ZA")} · ${filtered.length} assets</p></div>
+        <button class="no-print" onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">🖨️ Print</button>
+      </div><hr style="margin-bottom:10px"/>
+      <div>${rows}</div></body></html>`);
     win.document.close();
   };
 
@@ -2647,6 +2654,7 @@ function QRPrintSheet({units,equipTypes,onClose}){
     </Modal>
   );
 }
+
 // ── LOAD LIST PDF ──────────────────────────────────────────────────────────────
 function printLoadList(quote,units,equipTypes,crew){
   const win=window.open("","_blank");
@@ -2773,7 +2781,7 @@ function parseCSVImport(text, equipTypes, existingUnits, setEquipTypes, setUnits
 function VehiclesPage({vehicles,setVehicles,quotes,crew,user}){
   const [showAdd,setShowAdd]=useState(false);
   const [editing,setEditing]=useState(null);
-  const canEdit=user.role==="admin"||user.role==="warehouse";
+  const canEdit=userIsManager(user)||user.role==="warehouse";
 
   const getQuote=(quoteId)=>quotes.find(q=>q.id===quoteId);
 
@@ -2866,7 +2874,7 @@ function VehicleForm({initial={},onSave,onCancel}){
 // PROJECTS (admin only for editing)
 function Projects({projects,setProjects,user}){
   const [filter,setFilter]=useState("all"); const [sel,setSel]=useState(null);
-  const canEdit=user.role==="admin";
+  const canEdit=userIsManager(user);
   return(
     <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
@@ -2889,7 +2897,12 @@ function Projects({projects,setProjects,user}){
                 {p.notes&&<div style={{color:"#4b5563",fontSize:12,marginTop:6,fontStyle:"italic"}}>{p.notes}</div>}
               </div>
             </div>
-            {canEdit&&<button onClick={()=>setSel({...p})} style={{marginTop:10,padding:"6px 14px",background:"#1f2937",border:"none",borderRadius:7,color:"#9ca3af",fontSize:12,cursor:"pointer"}}>Edit</button>}
+            {canEdit&&(
+                <div style={{display:"flex",gap:8,marginTop:10}}>
+                  <button onClick={()=>setSel({...p})} style={{padding:"6px 14px",background:"#1f2937",border:"none",borderRadius:7,color:"#9ca3af",fontSize:12,cursor:"pointer"}}>Edit</button>
+                  <button onClick={()=>{if(window.confirm(`Delete "${p.name}"? This cannot be undone.`)) setProjects(x=>x.filter(x=>x.id!==p.id));}} style={{padding:"6px 14px",background:"#1a0808",border:"1px solid #ef444433",borderRadius:7,color:"#ef4444",fontSize:12,cursor:"pointer"}}>Delete</button>
+                </div>
+              )}
           </Card>
         ))}
       </div>
@@ -2917,7 +2930,7 @@ function Crew({crew,setCrew,projects,user}){
   const [editing,setEditing]=useState(null);
   const [confirmRemove,setConfirmRemove]=useState(null);
   const [accessModal,setAccessModal]=useState(null);
-  const canEdit=isManager(user.role);
+  const canEdit=userIsManager(user);
 
   const ACCESS_ROLES=[
     {value:"admin",        label:"Manager",         desc:"Full access — create quotes, manage crew, all settings"},
@@ -3026,8 +3039,9 @@ function Crew({crew,setCrew,projects,user}){
             {editing.isNew&&(
               <div style={{background:"#0d1117",border:"1px solid #ff8c0033",borderRadius:8,padding:"10px 14px"}}>
                 <div style={{color:"#ff8c00",fontSize:12,fontWeight:700,marginBottom:4}}>Login Credentials</div>
-                <div style={{color:"#6b7280",fontSize:12}}>Default password will be: <span style={{fontFamily:"monospace",color:"#e5e7eb"}}>{editing.name?editing.name.toLowerCase().split(" ")[0]+"123":"firstname123"}</span></div>
-                <div style={{color:"#4b5563",fontSize:11,marginTop:2}}>They can change it in ⚙️ My Settings after first login.</div>
+                <div style={{color:"#6b7280",fontSize:12,marginBottom:6}}>Set a password for this staff member:</div>
+                <TI label="" value={editing.initPassword||editing.name?editing.name.toLowerCase().split(" ")[0]+"123":""} onChange={v=>setEditing(p=>({...p,initPassword:v}))} placeholder="e.g. staffname123" mono/>
+                <div style={{color:"#4b5563",fontSize:11,marginTop:4}}>Staff member can change it in ⚙️ My Settings after first login. Email: {editing.email||`${(editing.name||"").toLowerCase().split(" ")[0]}@eventech.co.za`}</div>
               </div>
             )}
             <div style={{display:"flex",gap:10}}>
@@ -3042,7 +3056,7 @@ function Crew({crew,setCrew,projects,user}){
                     id:Date.now(),
                     name:c.name,
                     email:c.email||`${firstName}@eventech.co.za`,
-                    password:`${firstName}123`,
+                    password:c.initPassword||`${firstName}123`,
                     role:c.appRole||"crew",
                     avatar:c.name.slice(0,2).toUpperCase(),
                   });
@@ -3249,7 +3263,7 @@ function UserSettingsModal({user,onClose,onSave}){
 function PrepSheetsPage({prepSheets,setPrepSheets,user}){
   const [showAdd,setShowAdd]=useState(false);
   const [preview,setPreview]=useState(null);
-  const canUpload=isManager(user.role); // only Wynand & Herman
+  const canUpload=userIsManager(user); // only Wynand & Herman
   const isWarehouse=user.role==="warehouse";
 
   const markRead=(id)=>setPrepSheets(p=>p.map(s=>s.id===id?{...s,readBy:[...(s.readBy||[]),{name:user.name,at:new Date().toISOString()}]}:s));
@@ -3457,7 +3471,7 @@ export default function App(){
   const [dryHireItems,setDryHireItems]=usePersisted("dryHireItems",  []);
   const [stockTakes,setStockTakes]   = usePersisted("stockTakes",    []);
   const [quotes,setQuotes]           = usePersisted("quotes",        INIT_QUOTES);
-  const [prepSheets,setPrepSheets]  = usePersisted("prepSheets",    []);
+  const [prepSheets,setPrepSheets]   = usePersisted("prepSheets",    []);
 
   const login=(u)=>{ setUser(u); try{localStorage.setItem("et_session",JSON.stringify(u));}catch{} };
   const logout=()=>{ setUser(null); setTab("dashboard"); try{localStorage.removeItem("et_session");}catch{} };
@@ -3473,7 +3487,7 @@ export default function App(){
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
         {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} user={user}/>}
-        {tab==="quotes"   &&<QuotesPage quotes={quotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
+        {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
         {tab==="stocktake" &&<StockTakePage stockTakes={stockTakes} setStockTakes={setStockTakes} units={units} equipTypes={equipTypes} quotes={quotes} user={user}/>}

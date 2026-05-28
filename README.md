@@ -1,30 +1,56 @@
-# Eventech Warehouse Management System
+# Eventech App
 
-## Setup & Deploy
+A React-based event tech management application.
 
-### 1. Add Supabase keys
-Copy `.env.example` to `.env` and fill in your Supabase URL and anon key from your Supabase project settings.
+## Tech Stack
 
-### 2. Deploy to Vercel
-- Push this folder to GitHub
-- Connect repo to Vercel
-- In Vercel → Settings → Environment Variables, add:
-  - `VITE_SUPABASE_URL` = your Supabase URL
-  - `VITE_SUPABASE_ANON_KEY` = your Supabase anon key
-- Deploy — all devices will now sync in real time
+- [React 18](https://react.dev/)
+- [Vite](https://vitejs.dev/) (build tool)
+- Deployed on [Vercel](https://vercel.com/)
 
-### 3. Run locally
-```
+## Local Development
+
+```bash
+# Install dependencies
 npm install
+
+# Start dev server
 npm run dev
 ```
 
-## Logins
-- wynand@eventech.co.za / wynand123 (Manager)
-- herman@eventech.co.za / herman123 (Manager)
-- remerus@eventech.co.za / remerus123 (Warehouse)
-- liam@eventech.co.za / liam123 (Audio HOD)
-- pat@eventech.co.za / pat123 (Lighting HOD)
-- paulos@eventech.co.za / paulos123 (Structures HOD)
-- kabelo@eventech.co.za / kabelo123 (Power HOD)
-- frans@eventech.co.za / frans123 (AV/LED HOD)
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+## Build
+
+```bash
+npm run build
+```
+
+## Deploy to Vercel
+
+### Option 1 — GitHub (Recommended)
+
+1. Push this repo to GitHub.
+2. Go to [vercel.com](https://vercel.com) → **New Project** → Import your GitHub repo.
+3. Vercel auto-detects Vite. Leave all settings as default.
+4. Click **Deploy**.
+
+### Option 2 — Vercel CLI
+
+```bash
+npm i -g vercel
+vercel
+```
+
+## Project Structure
+
+```
+eventech-app/
+├── index.html          # HTML entry point
+├── vite.config.js      # Vite configuration
+├── vercel.json         # SPA routing rewrites
+├── package.json
+└── src/
+    ├── main.jsx        # React root mount
+    └── App.jsx         # Main application component
+```
