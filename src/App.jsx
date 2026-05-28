@@ -325,7 +325,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
         </Card>
         <Card>
           <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Assets by Category</div>
-          {["Audio","Lighting","AV","Rigging","Staging"].map(cat=>{
+          {["Audio","Lighting","AV","Rigging","Staging","Power","Cables","3-Phase"].map(cat=>{
             const typeIds=equipTypes.filter(t=>t.category===cat).map(t=>t.id);
             const catUnits=units.filter(u=>typeIds.includes(u.typeId));
             const total=catUnits.length, avail=catUnits.filter(u=>u.status==="available").length;
