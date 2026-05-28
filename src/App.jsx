@@ -258,7 +258,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
 }
 
 // SCAN OUT / IN
-function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,user}){
+function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,projects,user}){
   const [phase,setPhase]=useState("start");
   const [activeQ,setActiveQ]=useState(null);
   const [scanVal,setScanVal]=useState("");
@@ -359,7 +359,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
         </div>
         <Sel label="Link to Project (optional)" value={projId} onChange={setProjId}>
           <option value="">— Independent hire —</option>
-          {INIT_PROJECTS.filter(p=>p.status!=="completed").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          {projects.filter(p=>p.status!=="completed").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </Sel>
         <div style={{display:"flex",gap:12}}>
           <div style={{flex:1}}><TI label="Start Date" value={startDate} onChange={setStart} type="date"/></div>
@@ -3486,7 +3486,7 @@ export default function App(){
       <div style={{flex:1,overflowY:"auto"}}>
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
-        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} user={user}/>}
+        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} projects={projects} user={user}/>}
         {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
