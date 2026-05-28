@@ -1165,7 +1165,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
       </div>
       <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{padding:"8px 14px",background:"#161b27",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none",minWidth:180}}/>
-        {["All","Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase"].map(c=>(
+        {["All","Audio","Lighting","AV","LED","Rigging","Staging","Trussing","Cables","3-Phase"].map(c=>(
           <button key={c} onClick={()=>setFilter(c)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #2a2a3a",cursor:"pointer",fontSize:12,fontWeight:600,background:filter===c?"#ff8c00":"#161b27",color:filter===c?"#fff":"#9ca3af"}}>{c}</button>
         ))}
       </div>
