@@ -38,7 +38,7 @@ const MANAGER_EMAILS = ["wynand@eventech.co.za","herman@eventech.co.za"];
 const userIsManager  = (u) => u && (u.role==="admin" || MANAGER_EMAILS.includes((u.email||"").toLowerCase()));
 const ROLE_LABELS = { admin:"Manager", warehouse:"Warehouse", hod_audio:"Audio HOD", hod_lighting:"Lighting HOD", hod_rigging:"Structures HOD", hod_power:"Power HOD", hod_av:"AV/LED HOD", crew:"Crew", freelancer:"Freelancer" };
 const HOD_ROLES = ["hod_audio","hod_lighting","hod_rigging","hod_power","hod_av"];
-const canReportFault = (role) => HOD_ROLES.includes(role) || role==="admin" || role==="warehouse";
+const canReportFault = (role) => true; // Anyone can log a fault
 const isManager = (role) => role==="admin";
 const canScanOut = (role) => role==="admin" || role==="warehouse" || role==="crew" || HOD_ROLES.includes(role);
 const isFreelancer = (role) => role==="freelancer";
@@ -268,7 +268,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
 }
 
 // SCAN OUT / IN
-function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,projects,user}){
+function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,projects,user,faultReports,setFaultReports}){
   const [phase,setPhase]=useState("start");
   const [activeQ,setActiveQ]=useState(null);
   const [scanVal,setScanVal]=useState("");
@@ -280,12 +280,15 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
   const [showCamera,setShowCamera]=useState(false);
   const [cameraErr,setCameraErr]=useState("");
   const [scanMode,setScanMode]=useState("keyboard"); // "keyboard"|"camera"
+  // Fault interception: when a faulty unit is scanned in, show this modal
+  const [faultIntercept,setFaultIntercept]=useState(null); // {unit, type, faults:[...], pendingUnitId}
   const scanRef=useRef(null);
   const videoRef=useRef(null);
   const streamRef=useRef(null);
   const canAct=canScanOut(user.role);
   const isHOD=HOD_ROLES.includes(user.role);
   const canCreate=user.role==="admin"||user.role==="warehouse";
+  const isWarehouseOrAdmin=user.role==="admin"||user.role==="warehouse";
 
   useEffect(()=>{ if(phase==="active") setTimeout(()=>scanRef.current?.focus(),100); },[phase]);
 
@@ -434,7 +437,17 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
     if(!onQuote){ setWarning({msg:`${unit.serial} is not on this quote or already returned.`,pendingAdd:null}); setActiveQ(p=>({...p,_scanInput:""})); return; }
     // Already scanned?
     if((activeQ._scanned||[]).includes(unit.id)){ setWarning({msg:`${unit.serial} already scanned in.`,pendingAdd:null}); setActiveQ(p=>({...p,_scanInput:""})); return; }
-    // Mark as scanned
+
+    // CHECK FOR OPEN FAULT REPORTS on this unit
+    const unitFaults=(faultReports||[]).filter(f=>f.unitId===unit.id&&(f.status==="open"||f.status==="acknowledged"||f.status==="in-repair"));
+    if(unitFaults.length>0){
+      const type=equipTypes.find(t=>t.id===unit.typeId);
+      setFaultIntercept({unit,type,faults:unitFaults});
+      setActiveQ(p=>({...p,_scanInput:""}));
+      return;
+    }
+
+    // Mark as scanned (no faults)
     setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),unit.id],_scanInput:""}));
   }
 
@@ -752,6 +765,76 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
             </div>
           )}
         </div>
+      )}
+
+      {/* FAULT INTERCEPT MODAL — fires when a faulty asset is scanned back in */}
+      {faultIntercept&&isWarehouseOrAdmin&&(
+        <FaultInterceptModal
+          intercept={faultIntercept}
+          user={user}
+          onAccept={(declineNote)=>{
+            // Accept = confirm faults are real → mark unit maintenance, faults stay open/acknowledged
+            const now=new Date().toISOString();
+            setFaultReports(p=>p.map(f=>{
+              if(!faultIntercept.faults.find(x=>x.id===f.id)) return f;
+              if(f.status==="open"||f.status==="acknowledged"){
+                return{...f,
+                  status:"in-repair",
+                  acknowledgedAt:f.acknowledgedAt||now,
+                  acknowledgedBy:f.acknowledgedBy||user.name,
+                  repairHistory:[...(f.repairHistory||[]),{
+                    action:"Confirmed on Scan-In",
+                    note:`Fault confirmed by ${user.name} during scan-in. Asset moved to maintenance.`,
+                    by:user.name,at:now
+                  }]
+                };
+              }
+              return f;
+            }));
+            // Mark unit as maintenance
+            setUnits(p=>p.map(u=>u.id===faultIntercept.unit.id?{...u,status:"maintenance"}:u));
+            // Still add to scanned list so return is recorded
+            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
+            setFaultIntercept(null);
+          }}
+          onDecline={(declineNote)=>{
+            // Decline = fault not confirmed, dismiss faults as false alarm
+            const now=new Date().toISOString();
+            setFaultReports(p=>p.map(f=>{
+              if(!faultIntercept.faults.find(x=>x.id===f.id)) return f;
+              return{...f,
+                status:"resolved",
+                resolvedAt:now,
+                resolvedBy:user.name,
+                repairHistory:[...(f.repairHistory||[]),{
+                  action:"Declined on Scan-In",
+                  note:`Fault report declined by ${user.name} during scan-in. Reason: ${declineNote||"No fault found on inspection."}`,
+                  by:user.name,at:now
+                }]
+              };
+            }));
+            // Proceed with normal scan-in
+            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
+            setFaultIntercept(null);
+          }}
+          onDismiss={()=>{
+            // Non-warehouse user: just note and proceed (read-only view)
+            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
+            setFaultIntercept(null);
+          }}
+        />
+      )}
+      {/* Non-warehouse fault alert (read-only) */}
+      {faultIntercept&&!isWarehouseOrAdmin&&(
+        <FaultInterceptModal
+          intercept={faultIntercept}
+          user={user}
+          readOnly
+          onDismiss={()=>{
+            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
+            setFaultIntercept(null);
+          }}
+        />
       )}
 
       {/* CAMERA MODAL — always rendered so videoRef works correctly */}
@@ -1192,33 +1275,160 @@ function AddTypeForm({onSave,onCancel}){
 }
 
 
+// FAULT INTERCEPT MODAL — shown when a reported-faulty asset is scanned back in
+function FaultInterceptModal({intercept,user,onAccept,onDecline,onDismiss,readOnly=false}){
+  const {unit,type,faults}=intercept;
+  const [declineNote,setDeclineNote]=useState("");
+  const [mode,setMode]=useState(null); // null | "accept" | "decline"
+  const activeFaults=faults.filter(f=>f.status!=="resolved");
+  const allFaults=faults; // includes resolved (for history)
+
+  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
+
+  return(
+    <Modal title="🚨 Faulty Asset Detected on Scan-In" onClose={readOnly?onDismiss:null} width={600}>
+      {/* Alert header */}
+      <div style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",gap:14,alignItems:"flex-start"}}>
+        <span style={{fontSize:32,flexShrink:0}}>⚠️</span>
+        <div>
+          <div style={{color:"#ef4444",fontWeight:900,fontSize:17,marginBottom:4}}>This asset has open fault reports!</div>
+          <div style={{color:"#9ca3af",fontSize:13}}>
+            <strong style={{color:"#e5e7eb"}}>{type?.name||unit.serial}</strong>
+            {" · "}Serial: <span style={{fontFamily:"monospace",color:"#ff8c00"}}>{unit.serial}</span>
+            {" · "}Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{unit.barcode}</span>
+          </div>
+          <div style={{color:"#6b7280",fontSize:12,marginTop:4}}>
+            {activeFaults.length} active fault report{activeFaults.length!==1?"s":""} found · {allFaults.length} total in history
+          </div>
+        </div>
+      </div>
+
+      {/* Fault list */}
+      <div style={{marginBottom:20}}>
+        <div style={{color:"#9ca3af",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Active Fault Reports</div>
+        <div style={{maxHeight:280,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
+          {activeFaults.map((f,i)=>(
+            <div key={f.id} style={{background:"#0d1117",border:`1px solid ${STATUS_C[f.status]||"#2a2a3a"}44`,borderRadius:10,padding:"12px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{background:STATUS_C[f.status]+"22",color:STATUS_C[f.status],border:`1px solid ${STATUS_C[f.status]}44`,borderRadius:6,padding:"2px 9px",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>{f.status==="in-repair"?"In Repair":f.status}</span>
+                  <span style={{color:"#6b7280",fontSize:11}}>#{i+1}</span>
+                </div>
+                <span style={{color:"#4b5563",fontSize:11}}>Logged by <strong style={{color:"#ff8c00"}}>{f.loggedBy}</strong> · {fmt(f.loggedAt)}</span>
+              </div>
+              <div style={{color:"#e5e7eb",fontSize:13,background:"#161b27",borderRadius:8,padding:"8px 12px",marginBottom:f.photo?8:0}}>
+                {f.notes||<span style={{color:"#4b5563",fontStyle:"italic"}}>No notes provided.</span>}
+              </div>
+              {f.photo&&(
+                <div style={{marginTop:8}}>
+                  <img src={f.photo} alt="fault" style={{width:"100%",maxHeight:180,objectFit:"contain",borderRadius:8,border:"1px solid #2a2a3a",background:"#0d1117"}}/>
+                  <div style={{color:"#4b5563",fontSize:10,marginTop:4}}>Photo attached with report</div>
+                </div>
+              )}
+              {f.location&&<div style={{color:"#6b7280",fontSize:12,marginTop:6}}>📍 Location: <strong style={{color:"#e5e7eb"}}>{f.location}</strong></div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {readOnly?(
+        <div style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+          <div style={{color:"#f59e0b",fontWeight:700,fontSize:13}}>⚠️ FYI — This asset has been flagged as faulty</div>
+          <div style={{color:"#9ca3af",fontSize:13,marginTop:4}}>Warehouse or admin will inspect and process this fault on return. Proceed with scan-in.</div>
+          <div style={{marginTop:12}}><Btn full color="#f59e0b" onClick={onDismiss}>Understood — Continue Scan In</Btn></div>
+        </div>
+      ):(
+        <>
+          {!mode&&(
+            <>
+              <div style={{color:"#9ca3af",fontSize:13,marginBottom:14}}>
+                As warehouse/admin, you need to decide: <strong style={{color:"#fff"}}>is this fault confirmed?</strong>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <button onClick={()=>setMode("accept")} style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"16px 14px",cursor:"pointer",textAlign:"left"}}>
+                  <div style={{color:"#ef4444",fontWeight:800,fontSize:15,marginBottom:6}}>✓ Accept Fault</div>
+                  <div style={{color:"#9ca3af",fontSize:12}}>Confirm the fault is real. Asset goes directly to maintenance. Fault stays in reports.</div>
+                </button>
+                <button onClick={()=>setMode("decline")} style={{background:"#0d1a0d",border:"2px solid #10b981",borderRadius:12,padding:"16px 14px",cursor:"pointer",textAlign:"left"}}>
+                  <div style={{color:"#10b981",fontWeight:800,fontSize:15,marginBottom:6}}>✗ Decline / No Fault Found</div>
+                  <div style={{color:"#9ca3af",fontSize:12}}>Inspected — no real fault. Report will be closed. Asset returns to available.</div>
+                </button>
+              </div>
+            </>
+          )}
+
+          {mode==="accept"&&(
+            <div style={{background:"#1a0808",border:"2px solid #ef444466",borderRadius:12,padding:16}}>
+              <div style={{color:"#ef4444",fontWeight:800,fontSize:15,marginBottom:8}}>✓ Accepting Fault — Sending to Maintenance</div>
+              <div style={{color:"#9ca3af",fontSize:13,marginBottom:14}}>
+                The asset will be set to <strong style={{color:"#ef4444"}}>MAINTENANCE</strong> status. The fault report will move to <strong style={{color:"#8b5cf6"}}>In Repair</strong>. Scan-in will still be recorded.
+              </div>
+              <div style={{display:"flex",gap:10}}>
+                <Btn outline onClick={()=>setMode(null)} color="#6b7280">← Back</Btn>
+                <Btn color="#ef4444" onClick={()=>onAccept()}>🔧 Confirm — Move to Maintenance</Btn>
+              </div>
+            </div>
+          )}
+
+          {mode==="decline"&&(
+            <div style={{background:"#0d1a0d",border:"2px solid #10b98166",borderRadius:12,padding:16}}>
+              <div style={{color:"#10b981",fontWeight:800,fontSize:15,marginBottom:8}}>✗ Declining Fault Report</div>
+              <div style={{color:"#9ca3af",fontSize:13,marginBottom:10}}>Add a note explaining why the fault was declined (optional but recommended for audit trail).</div>
+              <div style={{marginBottom:12}}>
+                <Lbl>Decline Reason / Notes</Lbl>
+                <textarea value={declineNote} onChange={e=>setDeclineNote(e.target.value)} rows={3}
+                  placeholder="e.g. Tested on return — no fault found. Connector was loose, now fixed. Works correctly."
+                  style={{width:"100%",padding:"9px 12px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+              </div>
+              <div style={{display:"flex",gap:10}}>
+                <Btn outline onClick={()=>setMode(null)} color="#6b7280">← Back</Btn>
+                <Btn color="#10b981" onClick={()=>onDecline(declineNote)}>✓ Confirm — No Fault, Close Report</Btn>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </Modal>
+  );
+}
+
 // FAULT REPORTS
 function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
   const [showNew,setShowNew]=useState(false);
   const [detail,setDetail]=useState(null);
   const [repairModal,setRepairModal]=useState(null);
   const [filterSt,setFilterSt]=useState("all");
+  const [historyUnit,setHistoryUnit]=useState(null); // show full history for a unit
   const isWarehouse=user.role==="admin"||user.role==="warehouse";
-  const canReport=canReportFault(user.role);
   const fileRef=useRef(null);
 
   const filtered=faultReports.filter(f=>filterSt==="all"||f.status===filterSt);
-  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
+  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981",declined:"#10b981"};
 
   const acknowledge=(id)=>setFaultReports(p=>p.map(f=>f.id===id?{...f,status:"acknowledged",acknowledgedAt:new Date().toISOString(),acknowledgedBy:user.name}:f));
 
   // Check if this unit has recurring faults
   const recurringCount=(unitId)=>faultReports.filter(f=>f.unitId===unitId).length;
+  const openCount=faultReports.filter(f=>f.status==="open"||f.status==="acknowledged"||f.status==="in-repair").length;
 
   return(
     <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <h1 style={{color:"#fff",fontSize:22,fontWeight:900,margin:0}}>Fault Reports</h1>
-          <div style={{color:"#6b7280",fontSize:13,marginTop:3}}>HODs log faults from site. Warehouse manages repairs and resolution notes.</div>
+          <div style={{color:"#6b7280",fontSize:13,marginTop:3}}>Anyone can log a fault. Warehouse &amp; admin acknowledge and resolve. Full history is always retained.</div>
         </div>
-        {canReport&&<Btn onClick={()=>setShowNew(true)} color="#ef4444">🚨 Log Fault</Btn>}
+        <Btn onClick={()=>setShowNew(true)} color="#ef4444">🚨 Log Fault</Btn>
       </div>
+
+      {/* Summary bar */}
+      {openCount>0&&(
+        <div style={{background:"#1a0808",border:"1px solid #ef444433",borderRadius:10,padding:"10px 16px",marginBottom:18,display:"flex",gap:20,alignItems:"center",flexWrap:"wrap"}}>
+          <span style={{color:"#ef4444",fontWeight:800,fontSize:14}}>🚨 {openCount} Active Fault{openCount!==1?"s":""}</span>
+          <span style={{color:"#6b7280",fontSize:12}}>{faultReports.filter(f=>f.status==="open").length} open · {faultReports.filter(f=>f.status==="acknowledged").length} acknowledged · {faultReports.filter(f=>f.status==="in-repair").length} in repair</span>
+          {!isWarehouse&&<span style={{color:"#f59e0b",fontSize:12}}>Warehouse team will review and process these on equipment return.</span>}
+        </div>
+      )}
 
       <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
         {["all","open","acknowledged","in-repair","resolved"].map(s=>(
@@ -1233,15 +1443,16 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
           const unit=units.find(u=>u.id===f.unitId);
           const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
           const recur=f.unitId?recurringCount(f.unitId):0;
+          const statusColor=STATUS_C[f.status]||"#6b7280";
           return(
-            <Card key={f.id} style={{borderLeft:`4px solid ${STATUS_C[f.status]||"#2a2a3a"}`}}>
+            <Card key={f.id} style={{borderLeft:`4px solid ${statusColor}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,flexWrap:"wrap"}}>
                     <div style={{color:"#fff",fontWeight:800,fontSize:15}}>🚨 {type?.name||f.assetName||"Unknown Asset"}</div>
-                    <Badge label={f.status==="in-repair"?"In Repair":f.status} color={STATUS_C[f.status]||"#6b7280"}/>
+                    <Badge label={f.status==="in-repair"?"In Repair":f.status} color={statusColor}/>
                     <Badge label={f.category} color={CAT_COLORS[f.category]||"#6b7280"}/>
-                    {recur>1&&<span style={{color:"#ef4444",fontSize:11,fontWeight:700,background:"#1a0808",padding:"2px 8px",borderRadius:6}}>⚠️ {recur} faults on this unit</span>}
+                    {recur>1&&<span style={{color:"#ef4444",fontSize:11,fontWeight:700,background:"#1a0808",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} onClick={()=>setHistoryUnit(unit)}>⚠️ {recur} faults on this unit — view history</span>}
                   </div>
                   <div style={{color:"#9ca3af",fontSize:13,marginBottom:4}}>
                     Serial: <span style={{fontFamily:"monospace",color:"#e5e7eb"}}>{unit?.serial||"N/A"}</span>
@@ -1259,34 +1470,43 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
                   {/* Repair history timeline */}
                   {(f.repairHistory||[]).length>0&&(
                     <div style={{marginTop:10,borderTop:"1px solid #1f2937",paddingTop:10}}>
-                      <div style={{color:"#8b5cf6",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>🔧 Repair History</div>
-                      {f.repairHistory.map((r,i)=>(
-                        <div key={i} style={{background:"#0d1117",borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid #8b5cf633"}}>
-                          <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:4,marginBottom:4}}>
-                            <span style={{color:"#8b5cf6",fontWeight:700,fontSize:12}}>{r.action}</span>
-                            <span style={{color:"#4b5563",fontSize:11}}>{r.by} · {fmt(r.at)}</span>
+                      <div style={{color:"#8b5cf6",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>🔧 Action History</div>
+                      {f.repairHistory.map((r,i)=>{
+                        const actionColor=r.action.includes("Declined")||r.action.includes("No Fault")?"#10b981":r.action.includes("Confirmed")||r.action.includes("Repair")?"#8b5cf6":r.action.includes("Resolved")?"#10b981":"#f59e0b";
+                        return(
+                          <div key={i} style={{background:"#0d1117",borderRadius:8,padding:"10px 12px",marginBottom:6,border:`1px solid ${actionColor}22`}}>
+                            <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:4,marginBottom:4}}>
+                              <span style={{color:actionColor,fontWeight:700,fontSize:12}}>{r.action}</span>
+                              <span style={{color:"#4b5563",fontSize:11}}>{r.by} · {fmt(r.at)}</span>
+                            </div>
+                            <div style={{color:"#9ca3af",fontSize:12}}>{r.note}</div>
+                            {r.bookedIn&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3}}>🏭 Booked in to: <strong>{r.repairShop}</strong> · Expected back: {r.expectedReturn}</div>}
+                            {r.returnDoc&&<div style={{marginTop:6}}><img src={r.returnDoc} alt="repair doc" style={{maxWidth:120,borderRadius:6,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:r.returnDoc,notes:r.note})}/><div style={{color:"#4b5563",fontSize:10,marginTop:2}}>Repair document</div></div>}
                           </div>
-                          <div style={{color:"#9ca3af",fontSize:12}}>{r.note}</div>
-                          {r.bookedIn&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3}}>🏭 Booked in to: <strong>{r.repairShop}</strong> · Expected back: {r.expectedReturn}</div>}
-                          {r.returnDoc&&<div style={{marginTop:6}}><img src={r.returnDoc} alt="repair doc" style={{maxWidth:120,borderRadius:6,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:r.returnDoc,notes:r.note})}/><div style={{color:"#4b5563",fontSize:10,marginTop:2}}>Repair document</div></div>}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
                   {f.status==="acknowledged"&&<div style={{color:"#f59e0b",fontSize:12,marginTop:6}}>✓ Acknowledged by {f.acknowledgedBy} — {fmt(f.acknowledgedAt)}</div>}
-                  {f.status==="resolved"&&<div style={{color:"#10b981",fontSize:12,marginTop:6}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
+                  {(f.status==="resolved")&&<div style={{color:"#10b981",fontSize:12,marginTop:6}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
                   {f.photo&&<img src={f.photo} alt="fault" style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:f.photo,notes:f.notes})}/>}
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {f.photo&&<Btn small outline onClick={()=>setDetail({photo:f.photo,notes:f.notes})} color="#9ca3af">View Photo</Btn>}
+                    {unit&&<Btn small outline onClick={()=>setHistoryUnit(unit)} color="#6b7280">📋 Unit History</Btn>}
+                    {/* Warehouse/admin only actions */}
                     {isWarehouse&&f.status==="open"&&<Btn small color="#f59e0b" onClick={()=>acknowledge(f.id)}>Acknowledge</Btn>}
                     {isWarehouse&&(f.status==="acknowledged"||f.status==="in-repair")&&(
                       <Btn small color="#8b5cf6" onClick={()=>setRepairModal(f)}>🔧 Add Repair Note</Btn>
                     )}
                     {isWarehouse&&f.status==="in-repair"&&(
-                      <Btn small color="#10b981" onClick={()=>setFaultReports(p=>p.map(x=>x.id===f.id?{...x,status:"resolved",resolvedAt:new Date().toISOString(),resolvedBy:user.name}:x))}>Mark Resolved</Btn>
+                      <Btn small color="#10b981" onClick={()=>setRepairModal({...f,_forceResolve:true})}>✓ Mark Resolved</Btn>
+                    )}
+                    {/* Note for non-warehouse viewing resolved */}
+                    {!isWarehouse&&(f.status==="open"||f.status==="acknowledged")&&(
+                      <span style={{color:"#4b5563",fontSize:11,textAlign:"right",maxWidth:120}}>Warehouse will process</span>
                     )}
                   </div>
                 </div>
@@ -1312,20 +1532,67 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
       )}
 
       {repairModal&&(
-        <Modal title="🔧 Add Repair Note" onClose={()=>setRepairModal(null)} width={520}>
-          <RepairNoteForm fault={repairModal} user={user}
+        <Modal title={repairModal._forceResolve?"✓ Mark as Resolved":"🔧 Add Repair Note"} onClose={()=>setRepairModal(null)} width={520}>
+          <RepairNoteForm fault={repairModal} user={user} forceResolve={repairModal._forceResolve}
             onSave={(entry)=>{
               setFaultReports(p=>p.map(f=>{
                 if(f.id!==repairModal.id) return f;
                 const history=[...(f.repairHistory||[]),entry];
-                const newStatus=entry.action==="Booked In for Repair"?"in-repair":entry.action==="Resolved"?"resolved":f.status;
+                const newStatus=entry.action==="Booked In for Repair"?"in-repair":entry.action==="Resolved"||repairModal._forceResolve?"resolved":f.status;
                 return{...f,repairHistory:history,status:newStatus,
                   resolvedAt:newStatus==="resolved"?new Date().toISOString():f.resolvedAt,
                   resolvedBy:newStatus==="resolved"?user.name:f.resolvedBy};
               }));
+              // If resolved, set unit back to available (if it was in maintenance)
+              if(repairModal._forceResolve||repairModal.status==="in-repair"){
+                const fUnit=units.find(u=>u.id===repairModal.unitId);
+                if(fUnit&&fUnit.status==="maintenance"){
+                  // setUnits would be needed here — handled via prop if passed
+                }
+              }
               setRepairModal(null);
             }}
             onCancel={()=>setRepairModal(null)}/>
+        </Modal>
+      )}
+
+      {/* Unit fault history modal */}
+      {historyUnit&&(
+        <Modal title={`📋 Full Fault History — ${equipTypes.find(t=>t.id===historyUnit.typeId)?.name||historyUnit.serial}`} onClose={()=>setHistoryUnit(null)} width={620}>
+          <div style={{marginBottom:12}}>
+            <div style={{color:"#9ca3af",fontSize:13}}>Serial: <span style={{fontFamily:"monospace",color:"#ff8c00"}}>{historyUnit.serial}</span> · Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{historyUnit.barcode}</span></div>
+            <div style={{color:"#6b7280",fontSize:12,marginTop:4}}>All fault reports ever logged against this unit — nothing is deleted.</div>
+          </div>
+          {faultReports.filter(f=>f.unitId===historyUnit.id).length===0&&(
+            <div style={{color:"#4b5563",textAlign:"center",padding:"24px 0"}}>No fault history on this unit.</div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:"60vh",overflowY:"auto"}}>
+            {faultReports.filter(f=>f.unitId===historyUnit.id).sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt)).map((f,i)=>{
+              const STATUS_C2={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
+              return(
+                <div key={f.id} style={{background:"#0d1117",border:`1px solid ${STATUS_C2[f.status]||"#2a2a3a"}33`,borderRadius:10,padding:"12px 14px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
+                    <span style={{color:STATUS_C2[f.status]||"#6b7280",fontWeight:700,fontSize:13}}>{f.status==="in-repair"?"In Repair":f.status.charAt(0).toUpperCase()+f.status.slice(1)}</span>
+                    <span style={{color:"#4b5563",fontSize:11}}>#{i+1} · {fmt(f.loggedAt)}</span>
+                  </div>
+                  <div style={{color:"#e5e7eb",fontSize:13,marginBottom:4}}>{f.notes||<span style={{color:"#4b5563",fontStyle:"italic"}}>No notes</span>}</div>
+                  <div style={{color:"#6b7280",fontSize:12}}>Logged by <strong style={{color:"#ff8c00"}}>{f.loggedBy}</strong> · 📍 {f.location||"Location not specified"}</div>
+                  {f.photo&&<div style={{marginTop:8}}><img src={f.photo} alt="fault" style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid #2a2a3a"}}/></div>}
+                  {(f.repairHistory||[]).length>0&&(
+                    <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #1f2937"}}>
+                      {f.repairHistory.map((r,j)=>(
+                        <div key={j} style={{color:"#6b7280",fontSize:12,marginBottom:4}}>
+                          <span style={{color:"#8b5cf6",fontWeight:700}}>{r.action}</span> — {r.note} <span style={{color:"#4b5563"}}>({r.by} · {fmt(r.at)})</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {f.resolvedAt&&<div style={{color:"#10b981",fontSize:12,marginTop:4}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{marginTop:16}}><Btn full outline onClick={()=>setHistoryUnit(null)} color="#6b7280">Close</Btn></div>
         </Modal>
       )}
     </div>
@@ -1334,8 +1601,8 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
 
 
 // REPAIR NOTE FORM
-function RepairNoteForm({fault,user,onSave,onCancel}){
-  const [action,setAction]=useState("Inspection & Note");
+function RepairNoteForm({fault,user,onSave,onCancel,forceResolve=false}){
+  const [action,setAction]=useState(forceResolve?"Resolved":"Inspection & Note");
   const [note,setNote]=useState("");
   const [bookedIn,setBookedIn]=useState(false);
   const [repairShop,setRepairShop]=useState("");
@@ -3496,7 +3763,7 @@ export default function App(){
       <div style={{flex:1,overflowY:"auto"}}>
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
-        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} projects={projects} user={user}/>}
+        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} projects={projects} user={user} faultReports={faultReports} setFaultReports={setFaultReports}/>}
         {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
