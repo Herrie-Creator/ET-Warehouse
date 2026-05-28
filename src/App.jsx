@@ -167,9 +167,19 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
   const upcoming=[...projects].filter(p=>p.status!=="completed").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,4);
   return(
     <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
-      <div style={{marginBottom:24}}>
-        <h1 style={{color:"#fff",fontSize:24,fontWeight:900,margin:0}}>Operations Overview</h1>
-        <div style={{color:"#6b7280",fontSize:14,marginTop:4}}>Eventech Warehouse Management</div>
+      <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <h1 style={{color:"#fff",fontSize:24,fontWeight:900,margin:0}}>Operations Overview</h1>
+          <div style={{color:"#6b7280",fontSize:14,marginTop:4}}>Eventech Warehouse Management</div>
+        </div>
+        <button
+          onClick={()=>window.open("/warehouse","_blank","noopener,noreferrer")}
+          style={{display:"flex",alignItems:"center",gap:8,background:"#161b27",border:"1px solid #2a2a3a",borderRadius:10,padding:"8px 16px",color:"#9ca3af",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}
+          onMouseOver={e=>{e.currentTarget.style.borderColor="#ff8c0066";e.currentTarget.style.color="#ff8c00";}}
+          onMouseOut={e=>{e.currentTarget.style.borderColor="#2a2a3a";e.currentTarget.style.color="#9ca3af";}}
+        >
+          <span style={{fontSize:16}}>🖥️</span> Open on Second Screen
+        </button>
       </div>
       {(faultReports||[]).filter(f=>f.status==="open").length>0&&(
         <div style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"12px 18px",marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
