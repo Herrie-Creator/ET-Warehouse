@@ -83,12 +83,86 @@ function Modal({title,children,onClose,width=540}){
   );
 }
 
+// ── CODE 128 BARCODE ENGINE ───────────────────────────────────────────────────
+const CODE128_B={
+  " ":0,"!":1,"\"":2,"#":3,"$":4,"%":5,"&":6,"'":7,"(":8,")":9,"*":10,"+":11,
+  ",":12,"-":13,".":14,"/":15,"0":16,"1":17,"2":18,"3":19,"4":20,"5":21,"6":22,
+  "7":23,"8":24,"9":25,":":26,";":27,"<":28,"=":29,">":30,"?":31,"@":32,"A":33,
+  "B":34,"C":35,"D":36,"E":37,"F":38,"G":39,"H":40,"I":41,"J":42,"K":43,"L":44,
+  "M":45,"N":46,"O":47,"P":48,"Q":49,"R":50,"S":51,"T":52,"U":53,"V":54,"W":55,
+  "X":56,"Y":57,"Z":58,"[":59,"\\":60,"]":61,"^":62,"_":63,"`":64,"a":65,"b":66,
+  "c":67,"d":68,"e":69,"f":70,"g":71,"h":72,"i":73,"j":74,"k":75,"l":76,"m":77,
+  "n":78,"o":79,"p":80,"q":81,"r":82,"s":83,"t":84,"u":85,"v":86,"w":87,"x":88,
+  "y":89,"z":90,"{":91,"|":92,"}":93,"~":94
+};
+// Bar patterns for each symbol value (0-106): 6 elements = 3 bars + 3 spaces widths (1-4)
+const CODE128_PATTERNS=[
+  [2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],
+  [1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],
+  [2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],
+  [1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],
+  [2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],
+  [3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],
+  [2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],
+  [1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],
+  [2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],
+  [1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],
+  [2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],
+  [3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],
+  [3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],
+  [1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],
+  [1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],
+  [2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],
+  [1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],
+  [1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],
+  [2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],
+  [1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],
+  [1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],
+  [2,1,1,2,3,2],[2,3,3,1,1,1,2] // stop pattern (7 elements)
+];
+function encodeCode128(text){
+  const vals=[104]; // START B
+  for(let i=0;i<text.length;i++){
+    const v=CODE128_B[text[i]];
+    vals.push(v!==undefined?v:0);
+  }
+  let check=vals[0];
+  for(let i=1;i<vals.length;i++) check=(check+i*vals[i])%103;
+  vals.push(check);
+  vals.push(106); // STOP
+  return vals;
+}
+function code128Bars(text){
+  const vals=encodeCode128(text);
+  const bars=[];
+  let isBar=true;
+  for(let i=0;i<vals.length;i++){
+    const pat=CODE128_PATTERNS[vals[i]];
+    if(!pat) continue;
+    for(let j=0;j<pat.length;j++){
+      bars.push({w:pat[j],dark:j%2===0});
+      // last symbol (stop) has 7 elements; parity alternates correctly
+    }
+  }
+  return bars;
+}
+
 function QRSvg({code,size=70}){
-  let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
-  const n=10; const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
-  [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
-  const cell=size/n;
-  return(<div style={{display:"inline-block",background:"#fff",padding:6,borderRadius:8}}><svg width={size} height={size}>{cells.map((on,i)=>on&&<rect key={i} x={(i%n)*cell} y={Math.floor(i/n)*cell} width={cell-1} height={cell-1} fill="#111"/>)}</svg><div style={{textAlign:"center",fontSize:9,fontFamily:"monospace",color:"#333",marginTop:2}}>{code}</div></div>);
+  const bars=code128Bars(code);
+  const totalUnits=bars.reduce((s,b)=>s+b.w,0);
+  const moduleW=size/totalUnits;
+  const barH=size*0.72;
+  let x=0;
+  const rects=bars.map((b,i)=>{
+    const rx=x; x+=b.w*moduleW;
+    return b.dark?<rect key={i} x={rx} y={0} width={b.w*moduleW} height={barH} fill="#000"/>:null;
+  });
+  return(
+    <div style={{display:"inline-block",background:"#fff",padding:"6px 8px",borderRadius:6}}>
+      <svg width={size} height={Math.round(barH+2)} style={{display:"block"}}>{rects}</svg>
+      <div style={{textAlign:"center",fontSize:8,fontFamily:"monospace",color:"#333",marginTop:2,letterSpacing:"0.05em"}}>{code}</div>
+    </div>
+  );
 }
 
 // LOGIN
@@ -595,7 +669,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
               <span style={{fontSize:28}}>📱</span>
               <div>
                 <div style={{color:"#fff",fontWeight:700,fontSize:15}}>Scan with Phone Camera</div>
-                <div style={{color:"#6b7280",fontSize:13}}>Use your phone or tablet camera to scan QR codes directly. Works on iOS & Android.</div>
+                <div style={{color:"#6b7280",fontSize:13}}>Use your phone or tablet camera to scan barcodes directly. Works on iOS & Android.</div>
               </div>
             </div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -839,13 +913,13 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
 
       {/* CAMERA MODAL — always rendered so videoRef works correctly */}
       {showCamera&&(
-        <Modal title="📷 Scan QR Code" onClose={stopCamera} width={480}>
+        <Modal title="📷 Scan Barcode" onClose={stopCamera} width={480}>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
             <div style={{position:"relative",width:"100%",background:"#000",borderRadius:10,overflow:"hidden",minHeight:250}}>
               <video ref={videoRef} style={{width:"100%",maxHeight:320,objectFit:"cover",display:"block"}} playsInline muted autoPlay/>
               <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:180,height:180,border:"3px solid #ff8c00",borderRadius:12,pointerEvents:"none",boxShadow:"0 0 0 1000px rgba(0,0,0,0.4)"}}/>
             </div>
-            <div style={{color:"#9ca3af",fontSize:13,textAlign:"center"}}>Point at the QR code on the equipment. Tap Scan when it's in the orange box.</div>
+            <div style={{color:"#9ca3af",fontSize:13,textAlign:"center"}}>Point at the barcode on the equipment. Tap Scan when it's in the orange box.</div>
             {cameraErr&&<div style={{color:"#ef4444",fontSize:13,fontWeight:600,textAlign:"center",background:"#1a0808",borderRadius:8,padding:"8px 12px",width:"100%"}}>{cameraErr}</div>}
             <div style={{color:"#6b7280",fontSize:11,textAlign:"center"}}>Works on Chrome (Android) and Safari (iOS). If camera doesn't appear, check browser permissions.</div>
             <div style={{display:"flex",gap:10,width:"100%"}}>
@@ -1083,7 +1157,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
         <h1 style={{color:"#fff",fontSize:22,fontWeight:900,margin:0}}>Assets</h1>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Btn outline onClick={()=>exportAssetsToCSV(equipTypes,units)} color="#10b981">⬇ Export CSV</Btn>
-          <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print QR Sheet</Btn>
+          <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print Barcode Sheet</Btn>
           {canEdit&&<><input ref={importRef} type="file" accept=".csv,.txt" onChange={handleImport} style={{display:"none"}}/>
           <Btn outline onClick={()=>importRef.current?.click()} color="#3b82f6">⬆ Import CSV</Btn></>}
           {userIsManager(user)&&<Btn onClick={()=>setAddType(true)}>+ Add Type</Btn>}
@@ -1119,7 +1193,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
               <div><div style={{color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>Out</div><div style={{color:"#ff8c00",fontWeight:800,fontSize:20,fontFamily:"monospace"}}>{out}</div></div>
               {maint>0&&<div><div style={{color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>Maint</div><div style={{color:"#ef4444",fontWeight:800,fontSize:20,fontFamily:"monospace"}}>{maint}</div></div>}
             </div>
-            {isCable&&cableData&&<div style={{color:"#4b5563",fontSize:12,marginBottom:8,fontFamily:"monospace"}}>QR: {cableData.barcode}</div>}
+            {isCable&&cableData&&<div style={{color:"#4b5563",fontSize:12,marginBottom:8,fontFamily:"monospace"}}>Barcode: {cableData.barcode}</div>}
             {!isCable&&(()=>{
               const svcStatus=typeUnits.map(u=>serviceStatus(u));
               const overdueCount=svcStatus.filter(s=>s==="overdue").length;
@@ -1248,7 +1322,7 @@ function AddUnitForm({typeId,units,onSave,onCancel}){
   const bcExists=units.some(u=>u.barcode.toUpperCase()===barcode.trim().toUpperCase())&&barcode.trim().toUpperCase()!==newBC;
   return(<div style={{display:"flex",flexDirection:"column",gap:12}}>
     <TI label="Serial Number" value={serial} onChange={setSerial} placeholder="e.g. CDJ-A005" mono/>
-    <TI label="Barcode / QR Code" value={barcode} onChange={setBarcode} mono error={bcExists?"Barcode already exists!":""}/>
+    <TI label="Barcode (Code 128)" value={barcode} onChange={setBarcode} mono error={bcExists?"Barcode already exists!":""}/>
     {barcode&&<div style={{display:"flex",justifyContent:"center",padding:"10px 0"}}><QRSvg code={barcode.toUpperCase()} size={80}/></div>}
     <div style={{display:"flex",gap:10}}>
       <Btn outline onClick={onCancel} color="#6b7280">Cancel</Btn>
@@ -2878,31 +2952,32 @@ function QRPrintSheet({units,equipTypes,onClose}){
   const [filterType,setFilterType]=useState("all");
   const filtered=filterType==="all"?units:units.filter(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); return t?.category===filterType; });
 
-  const makeQRsvg=(code,size=80)=>{
-    let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
-    const n=10,cell=Math.floor(size/n);
-    const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
-    [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
-    const rects=cells.map((on,i)=>on?`<rect x="${(i%n)*cell}" y="${Math.floor(i/n)*cell}" width="${cell}" height="${cell}" fill="#000"/>`:"").join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="background:#fff;display:block;margin:0 auto">${rects}</svg>`;
+  const makeBarcodesvg=(code,width=130)=>{
+    const bars=code128Bars(code);
+    const totalUnits=bars.reduce((s,b)=>s+b.w,0);
+    const mw=width/totalUnits;
+    const bh=Math.round(width*0.45);
+    let x=0;
+    const rects=bars.map(b=>{ const rx=x.toFixed(2); x+=b.w*mw; return b.dark?`<rect x="${rx}" y="0" width="${(b.w*mw).toFixed(2)}" height="${bh}" fill="#000"/>`:""; }).join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${bh}" style="display:block;margin:0 auto;background:#fff">${rects}</svg>`;
   };
   const print=()=>{
     const win=window.open("","_blank");
     const rows=filtered.map(u=>{
       const t=equipTypes.find(x=>x.id===u.typeId);
-      const qrSvg=makeQRsvg(u.barcode,90);
-      return `<div style="display:inline-block;border:2px solid #ddd;border-radius:8px;padding:10px;margin:6px;text-align:center;width:130px;vertical-align:top;font-family:sans-serif">
+      const barSvg=makeBarcodesvg(u.barcode,130);
+      return `<div style="display:inline-block;border:2px solid #ddd;border-radius:8px;padding:10px;margin:6px;text-align:center;width:150px;vertical-align:top;font-family:sans-serif">
         <div style="font-size:9px;font-weight:700;margin-bottom:4px;color:#333;word-break:break-word;min-height:24px">${t?.name||""}</div>
-        ${qrSvg}
+        ${barSvg}
         <div style="font-family:monospace;font-size:9px;font-weight:800;background:#f5f5f5;padding:3px 4px;border-radius:4px;margin-top:5px;word-break:break-all">${u.barcode}</div>
         <div style="font-size:8px;color:#666;margin-top:2px">${u.serial}</div>
         <div style="font-size:7px;color:#999;margin-top:1px">${t?.category||""}</div>
       </div>`;
     }).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Eventech QR Sheet</title>
+    win.document.write(`<!DOCTYPE html><html><head><title>Eventech Barcode Sheet</title>
       <style>body{font-family:sans-serif;padding:16px}@media print{.no-print{display:none}}</style></head><body>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH — Asset QR Codes</h2>
+        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH — Asset Barcodes</h2>
         <p style="margin:2px 0;color:#666;font-size:11px">Printed: ${new Date().toLocaleDateString("en-ZA")} · ${filtered.length} assets</p></div>
         <button class="no-print" onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">🖨️ Print</button>
       </div><hr style="margin-bottom:10px"/>
@@ -2911,8 +2986,8 @@ function QRPrintSheet({units,equipTypes,onClose}){
   };
 
   return(
-    <Modal title="🖨️ Print QR Code Sheet" onClose={onClose} width={520}>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:14}}>Generate a printable sheet of QR codes for all assets. Stick them on your gear for quick scanning.</div>
+    <Modal title="🖨️ Print Barcode Sheet" onClose={onClose} width={520}>
+      <div style={{color:"#6b7280",fontSize:13,marginBottom:14}}>Generate a printable sheet of Code 128 barcodes for all assets. Stick them on your gear for quick scanner scanning.</div>
       <Sel label="Filter by Category" value={filterType} onChange={setFilterType}>
         <option value="all">All Assets ({units.length})</option>
         {["Audio","Lighting","AV","LED","Rigging","Staging","Power"].map(c=>{
