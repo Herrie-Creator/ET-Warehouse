@@ -5,7 +5,7 @@ const LOGO_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUAAAABECAYAAADw
 const USERS = [
   { id:1, name:"Wynand",   email:"wynand@eventech.co.za",   password:"wynand123",   role:"admin",        avatar:"WY" },
   { id:2, name:"Herman",   email:"herman@eventech.co.za",   password:"herman123",   role:"admin",        avatar:"HE" },
-  { id:3, name:"Remerus", email:"rhemerus@eventech.co.za", password:"rhemerus123", role:"warehouse",    avatar:"RH" },
+  { id:3, name:"Remerus", email:"remerus@eventech.co.za", password:"remerus123", role:"warehouse",    avatar:"RH" },
   { id:4, name:"Liam",     email:"liam@eventech.co.za",     password:"liam123",     role:"hod_audio",    avatar:"LI" },
   { id:5, name:"Pat",      email:"pat@eventech.co.za",      password:"pat123",      role:"hod_lighting", avatar:"PA" },
   { id:6, name:"Paulos",   email:"paulos@eventech.co.za",   password:"paulos123",   role:"hod_rigging",  avatar:"PL" },
