@@ -4465,17 +4465,17 @@ export default function App(){
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
         {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} user={user}/>}
+        {tab==="prepsheets" &&<PrepSheetsPage prepSheets={prepSheets} setPrepSheets={setPrepSheets} user={user}/>}
+        {tab==="projects" &&<Projects projects={projects} setProjects={setProjects} user={user}/>}
         {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
         {tab==="stocktake" &&<StockTakePage stockTakes={stockTakes} setStockTakes={setStockTakes} units={units} equipTypes={equipTypes} quotes={quotes} user={user}/>}
-        {tab==="projects" &&<Projects projects={projects} setProjects={setProjects} user={user}/>}
-        {tab==="vehicles"   &&<VehiclesPage vehicles={vehicles} setVehicles={setVehicles} quotes={quotes} crew={crew} user={user}/>}
         {tab==="dryhire"    &&<DryHirePage dryHireItems={dryHireItems} setDryHireItems={setDryHireItems} quotes={quotes} user={user}/>}
+        {tab==="reports"    &&<ReportsPage units={units} equipTypes={equipTypes} quotes={quotes} faultReports={faultReports} stockTakes={stockTakes} cableStock={cableStock} user={user}/>}
         {tab==="freelancers"&&<FreelancersPage freelancers={freelancers} setFreelancers={setFreelancers} projects={projects} quotes={quotes} user={user}/>}
         {tab==="crew"       &&<Crew crew={crew} setCrew={setCrew} projects={projects} user={user}/>}
-        {tab==="prepsheets" &&<PrepSheetsPage prepSheets={prepSheets} setPrepSheets={setPrepSheets} user={user}/>}
-        {tab==="reports"    &&<ReportsPage units={units} equipTypes={equipTypes} quotes={quotes} faultReports={faultReports} stockTakes={stockTakes} cableStock={cableStock} user={user}/>}
+        {tab==="vehicles"   &&<VehiclesPage vehicles={vehicles} setVehicles={setVehicles} quotes={quotes} crew={crew} user={user}/>}
       </div>
       {showSettings&&(
         <UserSettingsModal
