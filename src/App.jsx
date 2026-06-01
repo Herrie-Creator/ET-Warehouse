@@ -38,7 +38,7 @@ const MANAGER_EMAILS = ["wynand@eventech.co.za","herman@eventech.co.za"];
 const userIsManager  = (u) => u && (u.role==="admin" || MANAGER_EMAILS.includes((u.email||"").toLowerCase()));
 const ROLE_LABELS = { admin:"Manager", warehouse:"Warehouse", hod_audio:"Audio HOD", hod_lighting:"Lighting HOD", hod_rigging:"Structures HOD", hod_power:"Power HOD", hod_av:"AV/LED HOD", crew:"Crew", freelancer:"Freelancer" };
 const HOD_ROLES = ["hod_audio","hod_lighting","hod_rigging","hod_power","hod_av"];
-const canReportFault = (role) => true; // Anyone can log a fault
+const canReportFault = (role) => HOD_ROLES.includes(role) || role==="admin" || role==="warehouse";
 const isManager = (role) => role==="admin";
 const canScanOut = (role) => role==="admin" || role==="warehouse" || role==="crew" || HOD_ROLES.includes(role);
 const isFreelancer = (role) => role==="freelancer";
@@ -83,86 +83,12 @@ function Modal({title,children,onClose,width=540}){
   );
 }
 
-// ── CODE 128 BARCODE ENGINE ───────────────────────────────────────────────────
-const CODE128_B={
-  " ":0,"!":1,"\"":2,"#":3,"$":4,"%":5,"&":6,"'":7,"(":8,")":9,"*":10,"+":11,
-  ",":12,"-":13,".":14,"/":15,"0":16,"1":17,"2":18,"3":19,"4":20,"5":21,"6":22,
-  "7":23,"8":24,"9":25,":":26,";":27,"<":28,"=":29,">":30,"?":31,"@":32,"A":33,
-  "B":34,"C":35,"D":36,"E":37,"F":38,"G":39,"H":40,"I":41,"J":42,"K":43,"L":44,
-  "M":45,"N":46,"O":47,"P":48,"Q":49,"R":50,"S":51,"T":52,"U":53,"V":54,"W":55,
-  "X":56,"Y":57,"Z":58,"[":59,"\\":60,"]":61,"^":62,"_":63,"`":64,"a":65,"b":66,
-  "c":67,"d":68,"e":69,"f":70,"g":71,"h":72,"i":73,"j":74,"k":75,"l":76,"m":77,
-  "n":78,"o":79,"p":80,"q":81,"r":82,"s":83,"t":84,"u":85,"v":86,"w":87,"x":88,
-  "y":89,"z":90,"{":91,"|":92,"}":93,"~":94
-};
-// Bar patterns for each symbol value (0-106): 6 elements = 3 bars + 3 spaces widths (1-4)
-const CODE128_PATTERNS=[
-  [2,1,2,2,2,2],[2,2,2,1,2,2],[2,2,2,2,2,1],[1,2,1,2,2,3],[1,2,1,3,2,2],
-  [1,3,1,2,2,2],[1,2,2,2,1,3],[1,2,2,3,1,2],[1,3,2,2,1,2],[2,2,1,2,1,3],
-  [2,2,1,3,1,2],[2,3,1,2,1,2],[1,1,2,2,3,2],[1,2,2,1,3,2],[1,2,2,2,3,1],
-  [1,1,3,2,2,2],[1,2,3,1,2,2],[1,2,3,2,2,1],[2,2,3,2,1,1],[2,2,1,1,3,2],
-  [2,2,1,2,3,1],[2,1,3,2,1,2],[2,2,3,1,1,2],[3,1,2,1,3,1],[3,1,1,2,2,2],
-  [3,2,1,1,2,2],[3,2,1,2,2,1],[3,1,2,2,1,2],[3,2,2,1,1,2],[3,2,2,2,1,1],
-  [2,1,2,1,2,3],[2,1,2,3,2,1],[2,3,2,1,2,1],[1,1,1,3,2,3],[1,3,1,1,2,3],
-  [1,3,1,3,2,1],[1,1,2,3,1,3],[1,3,2,1,1,3],[1,3,2,3,1,1],[2,1,1,3,1,3],
-  [2,3,1,1,1,3],[2,3,1,3,1,1],[1,1,2,1,3,3],[1,1,2,3,3,1],[1,3,2,1,3,1],
-  [1,1,3,1,2,3],[1,1,3,3,2,1],[1,3,3,1,2,1],[3,1,3,1,2,1],[2,1,1,3,3,1],
-  [2,3,1,1,3,1],[2,1,3,1,1,3],[2,1,3,3,1,1],[2,1,3,1,3,1],[3,1,1,1,2,3],
-  [3,1,1,3,2,1],[3,3,1,1,2,1],[3,1,2,1,1,3],[3,1,2,3,1,1],[3,3,2,1,1,1],
-  [3,1,4,1,1,1],[2,2,1,4,1,1],[4,3,1,1,1,1],[1,1,1,2,2,4],[1,1,1,4,2,2],
-  [1,2,1,1,2,4],[1,2,1,4,2,1],[1,4,1,1,2,2],[1,4,1,2,2,1],[1,1,2,2,1,4],
-  [1,1,2,4,1,2],[1,2,2,1,1,4],[1,2,2,4,1,1],[1,4,2,1,1,2],[1,4,2,2,1,1],
-  [2,4,1,2,1,1],[2,2,1,1,1,4],[4,1,3,1,1,1],[2,4,1,1,1,2],[1,3,4,1,1,1],
-  [1,1,1,2,4,2],[1,2,1,1,4,2],[1,2,1,2,4,1],[1,1,4,2,1,2],[1,2,4,1,1,2],
-  [1,2,4,2,1,1],[4,1,1,2,1,2],[4,2,1,1,1,2],[4,2,1,2,1,1],[2,1,2,1,4,1],
-  [2,1,4,1,2,1],[4,1,2,1,2,1],[1,1,1,1,4,3],[1,1,1,3,4,1],[1,3,1,1,4,1],
-  [1,1,4,1,1,3],[1,1,4,3,1,1],[4,1,1,1,1,3],[4,1,1,3,1,1],[1,1,3,1,4,1],
-  [1,1,4,1,3,1],[3,1,1,1,4,1],[4,1,1,1,3,1],[2,1,1,4,1,2],[2,1,1,2,1,4],
-  [2,1,1,2,3,2],[2,3,3,1,1,1,2] // stop pattern (7 elements)
-];
-function encodeCode128(text){
-  const vals=[104]; // START B
-  for(let i=0;i<text.length;i++){
-    const v=CODE128_B[text[i]];
-    vals.push(v!==undefined?v:0);
-  }
-  let check=vals[0];
-  for(let i=1;i<vals.length;i++) check=(check+i*vals[i])%103;
-  vals.push(check);
-  vals.push(106); // STOP
-  return vals;
-}
-function code128Bars(text){
-  const vals=encodeCode128(text);
-  const bars=[];
-  let isBar=true;
-  for(let i=0;i<vals.length;i++){
-    const pat=CODE128_PATTERNS[vals[i]];
-    if(!pat) continue;
-    for(let j=0;j<pat.length;j++){
-      bars.push({w:pat[j],dark:j%2===0});
-      // last symbol (stop) has 7 elements; parity alternates correctly
-    }
-  }
-  return bars;
-}
-
 function QRSvg({code,size=70}){
-  const bars=code128Bars(code);
-  const totalUnits=bars.reduce((s,b)=>s+b.w,0);
-  const moduleW=size/totalUnits;
-  const barH=size*0.72;
-  let x=0;
-  const rects=bars.map((b,i)=>{
-    const rx=x; x+=b.w*moduleW;
-    return b.dark?<rect key={i} x={rx} y={0} width={b.w*moduleW} height={barH} fill="#000"/>:null;
-  });
-  return(
-    <div style={{display:"inline-block",background:"#fff",padding:"6px 8px",borderRadius:6}}>
-      <svg width={size} height={Math.round(barH+2)} style={{display:"block"}}>{rects}</svg>
-      <div style={{textAlign:"center",fontSize:8,fontFamily:"monospace",color:"#333",marginTop:2,letterSpacing:"0.05em"}}>{code}</div>
-    </div>
-  );
+  let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
+  const n=10; const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
+  [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
+  const cell=size/n;
+  return(<div style={{display:"inline-block",background:"#fff",padding:6,borderRadius:8}}><svg width={size} height={size}>{cells.map((on,i)=>on&&<rect key={i} x={(i%n)*cell} y={Math.floor(i/n)*cell} width={cell-1} height={cell-1} fill="#111"/>)}</svg><div style={{textAlign:"center",fontSize:9,fontFamily:"monospace",color:"#333",marginTop:2}}>{code}</div></div>);
 }
 
 // LOGIN
@@ -195,17 +121,19 @@ function Login({onLogin}){
 
 // SIDEBAR
 const NAV=[
-  {key:"dashboard",icon:"▦", label:"Dashboard"},
-  {key:"scanout",  icon:"📷",label:"Scan Out / In"},
-  {key:"quotes",   icon:"📋",label:"Quotes"},
-  {key:"assets",   icon:"🔧",label:"Assets"},
-  {key:"faults",   icon:"🚨",label:"Fault Reports"},
-  {key:"stocktake", icon:"📊",label:"Stock Take"},
-  {key:"projects", icon:"📁",label:"Projects"},
-  {key:"vehicles",  icon:"🚛",label:"Vehicles"},
-  {key:"dryhire",   icon:"🔄",label:"Dry Hire In"},
+  {key:"dashboard",  icon:"▦", label:"Dashboard"},
+  {key:"scanout",    icon:"📷",label:"Scan Out / In"},
+  {key:"quotes",     icon:"📋",label:"Quotes"},
+  {key:"assets",     icon:"🔧",label:"Assets"},
+  {key:"faults",     icon:"🚨",label:"Fault Reports"},
+  {key:"stocktake",  icon:"📊",label:"Stock Take"},
+  {key:"projects",   icon:"📁",label:"Projects"},
+  {key:"vehicles",   icon:"🚛",label:"Vehicles"},
+  {key:"dryhire",    icon:"🔄",label:"Dry Hire In"},
   {key:"freelancers",icon:"🤝",label:"Freelancers"},
-  {key:"crew",     icon:"👥",label:"Crew"},
+  {key:"crew",       icon:"👥",label:"Crew"},
+  {key:"prepsheets", icon:"📄",label:"Prep Sheets"},
+  {key:"reports",    icon:"📈",label:"Reports"},
 ];
 function Sidebar({tab,setTab,user,onLogout,onOpenSettings}){
   return(
@@ -239,20 +167,208 @@ function Sidebar({tab,setTab,user,onLogout,onOpenSettings}){
 function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,setTab,user}){
   const totalUnits=units.length, outUnits=units.filter(u=>u.status==="out").length, maintUnits=units.filter(u=>u.status==="maintenance").length, availUnits=units.filter(u=>u.status==="available").length;
   const upcoming=[...projects].filter(p=>p.status!=="completed").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,4);
+
+  const openWarehouseDisplay=()=>{
+    const today=new Date().toISOString().split("T")[0];
+    const activeQuotes=quotes.filter(q=>q.status==="out"||q.status==="partially_returned");
+    const overdueQuotes=activeQuotes.filter(q=>q.endDate<today);
+    const dueSoonQuotes=activeQuotes.filter(q=>q.endDate>=today&&q.endDate<=new Date(Date.now()+2*86400000).toISOString().split("T")[0]);
+    const upcomingProjects=[...projects].filter(p=>p.status!=="completed"&&p.status!=="cancelled").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,8);
+    const maintUnitsDetail=units.filter(u=>u.status==="maintenance").map(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); const f=(faultReports||[]).find(x=>x.unitId===u.id); return{...u,typeName:t?.name||"Unknown",faultNote:f?.notes||""}; });
+    const openFaultsList=(faultReports||[]).filter(f=>f.status==="open"||f.status==="in-repair"||f.status==="acknowledged");
+    const logo=LOGO_B64;
+
+    // Build mini calendar for current month
+    const now=new Date();
+    const yr=now.getFullYear(), mo=now.getMonth();
+    const daysInMonth=new Date(yr,mo+1,0).getDate();
+    const firstDay=new Date(yr,mo,1).getDay();
+    const monthName=["January","February","March","April","May","June","July","August","September","October","November","December"][mo];
+    const calDays=[];
+    for(let i=0;i<firstDay;i++) calDays.push({day:null});
+    for(let i=1;i<=daysInMonth;i++){
+      const d=`${yr}-${String(mo+1).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
+      const hasProj=projects.some(p=>p.startDate<=d&&p.endDate>=d&&p.status!=="completed");
+      const hasQuote=quotes.some(q=>q.startDate<=d&&q.endDate>=d&&q.status!=="returned");
+      const isToday=d===today;
+      calDays.push({day:i,d,hasProj,hasQuote,isToday});
+    }
+    const calRows=[];
+    for(let i=0;i<calDays.length;i+=7) calRows.push(calDays.slice(i,i+7));
+
+    const win=window.open("","WarehouseDisplay","width=1440,height=900,toolbar=no,menubar=no,scrollbars=yes");
+    win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Eventech — Warehouse Display</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;900&family=DM+Mono:wght@700&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0d1117;color:#e5e7eb;font-family:'DM Sans',sans-serif;padding:20px 28px;min-height:100vh}
+    .badge{display:inline-block;padding:2px 10px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase}
+    .card{background:#161b27;border:1px solid #2a2a3a;border-radius:14px;padding:18px}
+    .stat-card{flex:1;min-width:130px;background:#161b27;border:1px solid #2a2a3a;border-radius:14px;padding:18px 22px}
+    .section-title{color:#9ca3af;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:12px;letter-spacing:.08em}
+    .row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #1f2937}
+    .row:last-child{border-bottom:none}
+    .name{color:#e5e7eb;font-weight:600;font-size:13px}
+    .sub{color:#6b7280;font-size:11px;margin-top:2px}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:#374151;border-radius:2px}
+    .cal-cell{width:36px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:12px;font-weight:600;color:#4b5563;position:relative}
+    .cal-cell.today{background:#ff8c0033;color:#ff8c00;font-weight:900;border:1px solid #ff8c0066}
+    .cal-cell.has-event{color:#e5e7eb}
+    .cal-dot{width:5px;height:5px;border-radius:50%;position:absolute;bottom:3px}
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:18px">
+      <img src="${logo}" alt="Eventech" style="height:58px;object-fit:contain"/>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:9px;height:9px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 2s infinite"></div>
+          <span style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-.5px">Warehouse Operations</span>
+          <span style="background:#ff8c0022;border:1px solid #ff8c0044;border-radius:7px;padding:3px 10px;font-size:10px;color:#ff8c00;font-weight:700">LIVE</span>
+        </div>
+        <div style="color:#6b7280;font-size:12px;margin-top:3px;margin-left:20px">Eventech Warehouse Management System</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div id="clock" style="color:#fff;font-size:56px;font-weight:900;font-family:'DM Mono',monospace;letter-spacing:3px;line-height:1"></div>
+      <div id="dateline" style="color:#9ca3af;font-size:15px;font-weight:600;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- ALERT BANNERS -->
+  ${overdueQuotes.length>0?`<div style="background:#1a0808;border:2px solid #ef4444;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#ef4444;font-weight:800">🚨 ${overdueQuotes.length} Overdue — ${overdueQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">Action Required</span></div>`:""}
+  ${dueSoonQuotes.length>0?`<div style="background:#1a1200;border:1px solid #f59e0b44;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#f59e0b;font-weight:700">⚠️ Due back within 48h: ${dueSoonQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">Due Soon</span></div>`:""}
+
+  <!-- STAT CARDS -->
+  <div style="display:flex;gap:12px;margin-bottom:16px">
+    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Total Assets</div><div style="font-size:48px;font-weight:900;color:#ff8c00;font-family:'DM Mono',monospace;line-height:1">${units.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">individual units tracked</div></div>
+    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Available</div><div style="font-size:48px;font-weight:900;color:#10b981;font-family:'DM Mono',monospace;line-height:1">${units.filter(u=>u.status==="available").length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">ready in warehouse</div></div>
+    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Out on Hire</div><div style="font-size:48px;font-weight:900;color:#f59e0b;font-family:'DM Mono',monospace;line-height:1">${activeQuotes.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">currently with clients</div></div>
+    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Maintenance</div><div style="font-size:48px;font-weight:900;color:#ef4444;font-family:'DM Mono',monospace;line-height:1">${maintUnitsDetail.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">flagged for service</div></div>
+    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Open Faults</div><div style="font-size:48px;font-weight:900;color:#8b5cf6;font-family:'DM Mono',monospace;line-height:1">${openFaultsList.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">reported issues</div></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
+
+    <!-- CALENDAR -->
+    <div class="card">
+      <div class="section-title">📅 ${monthName} ${yr}</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr>${["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>`<td style="text-align:center;color:#4b5563;font-size:10px;font-weight:700;padding-bottom:6px">${d}</td>`).join("")}</tr></thead>
+        <tbody>
+          ${calRows.map(row=>`<tr>${row.map(cell=>cell.day?
+            `<td style="text-align:center;padding:2px"><div class="cal-cell${cell.isToday?" today":cell.hasProj||cell.hasQuote?" has-event":""}" style="margin:0 auto">
+              ${cell.day}
+              ${cell.hasProj?`<div class="cal-dot" style="background:#3b82f6;left:6px"></div>`:""}
+              ${cell.hasQuote?`<div class="cal-dot" style="background:#ff8c00;right:6px"></div>`:""}
+            </div></td>`:
+            `<td></td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table>
+      <div style="display:flex;gap:12px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#3b82f6"></div><span style="color:#6b7280;font-size:10px">Project</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#ff8c00"></div><span style="color:#6b7280;font-size:10px">Hire Out</span></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#ff8c0033;border:1px solid #ff8c0066"></div><span style="color:#6b7280;font-size:10px">Today</span></div>
+      </div>
+    </div>
+
+    <!-- UPCOMING PROJECTS -->
+    <div class="card">
+      <div class="section-title">📁 Upcoming Projects</div>
+      <div style="max-height:280px;overflow-y:auto">
+        ${upcomingProjects.length===0?'<div style="color:#4b5563;font-size:12px">No upcoming projects</div>':
+          upcomingProjects.map(p=>`<div class="row"><div><div class="name">${p.name}</div><div class="sub">${p.venue||"—"}</div></div><div style="text-align:right"><span class="badge" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f633">${p.status}</span><div style="color:#4b5563;font-size:10px;margin-top:3px">${p.startDate}</div></div></div>`).join("")}
+      </div>
+    </div>
+
+    <!-- FAULTY EQUIPMENT -->
+    <div class="card" style="border-color:${(maintUnitsDetail.length+openFaultsList.length)>0?"#ef444433":"#2a2a3a"}">
+      <div class="section-title">🔧 Maintenance & Faults</div>
+      <div style="max-height:280px;overflow-y:auto">
+        ${(maintUnitsDetail.length+openFaultsList.length)===0?
+          '<div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:6px"><div style="font-size:28px">✅</div><div style="color:#10b981;font-size:12px;font-weight:600">All clear</div></div>'
+          :`${maintUnitsDetail.map(u=>`<div class="row"><div><div class="name">${u.typeName}</div><div class="sub" style="font-family:monospace">${u.assetNo||u.id}</div>${u.faultNote?`<div style="color:#f59e0b;font-size:10px;font-style:italic">"${u.faultNote}"</div>`:""}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">maint</span></div>`).join("")}
+          ${openFaultsList.map(f=>`<div class="row"><div><div class="name">${f.assetName||"Unknown"}</div><div class="sub">📍 ${f.location||"—"}</div>${f.notes?`<div style="color:#9ca3af;font-size:10px;font-style:italic">"${f.notes.slice(0,40)}..."</div>`:""}</div><span class="badge" style="background:${f.status==="in-repair"?"#8b5cf622":"#ef444422"};color:${f.status==="in-repair"?"#8b5cf6":"#ef4444"};border:1px solid ${f.status==="in-repair"?"#8b5cf644":"#ef444444"}">${f.status==="in-repair"?"In Repair":"Fault"}</span></div>`).join("")}`}
+      </div>
+    </div>
+
+    <!-- GATE CAMERA -->
+    <div class="card">
+      <div class="section-title">📷 Gate Camera</div>
+      <div style="background:#0d1117;border-radius:8px;overflow:hidden;aspect-ratio:16/9;position:relative;border:1px solid #2a2a3a">
+        <img
+          src="http://admin:aDMIN6789@192.168.1.211/cgi-bin/currentpic.cgi"
+          alt="Gate Camera"
+          id="cam"
+          style="width:100%;height:100%;object-fit:cover"
+          onerror="document.getElementById('camErr').style.display='flex'"
+        />
+        <div id="camErr" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;gap:8px">
+          <div style="font-size:32px">📷</div>
+          <div style="color:#4b5563;font-size:12px;text-align:center">Camera not available<br/>Check network connection</div>
+          <div style="color:#374151;font-size:10px;margin-top:4px">192.168.1.211</div>
+        </div>
+      </div>
+      <div style="color:#374151;font-size:10px;margin-top:6px;text-align:center">Gate Camera · Local Network</div>
+    </div>
+
+  </div>
+
+  <!-- CURRENT HIRE OUTS -->
+  <div class="card" style="margin-top:14px">
+    <div class="section-title">📦 Current Hire Outs (${activeQuotes.length})</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+      ${activeQuotes.length===0?'<div style="color:#4b5563;font-size:12px">No active hires</div>':
+        activeQuotes.map(q=>{const isOD=q.endDate<today; return`<div style="background:#0d1117;border-radius:8px;padding:10px 12px;border:1px solid ${isOD?"#ef444433":"#ff8c0022"}"><div style="color:${isOD?"#ef4444":"#ff8c00"};font-weight:800;font-size:14px;font-family:'DM Mono',monospace">${q.id}</div><div style="color:#e5e7eb;font-size:12px;margin-top:2px">${q.client||""}</div><div style="color:#6b7280;font-size:11px;margin-top:2px">Due: ${q.endDate}${isOD?" 🚨":""} · ${q.lines?.length||0} items</div>${q.driver?`<div style="color:#4b5563;font-size:10px;margin-top:2px">👤 ${q.driver}</div>`:""}</div>`;}).join("")}
+    </div>
+  </div>
+
+  <!-- FOOTER / CLOCK SCRIPT -->
+  <div style="margin-top:12px;display:flex;justify-content:center;gap:8px;align-items:center">
+    <div style="width:5px;height:5px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div>
+    <div style="color:#374151;font-size:11px">Eventech Warehouse Display · Auto-refreshes every 60s</div>
+  </div>
+
+  <script>
+    function tick(){
+      const n=new Date();
+      document.getElementById("clock").textContent=n.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      document.getElementById("dateline").textContent=n.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    }
+    tick();
+    setInterval(tick,1000);
+    // Refresh page every 60s to get latest data
+    setTimeout(()=>location.reload(),60000);
+    // Refresh camera image every 5s (MJPEG snapshot fallback)
+    setInterval(()=>{
+      const img=document.getElementById("cam");
+      if(img){ img.src="http://admin:aDMIN6789@192.168.1.211/cgi-bin/currentpic.cgi?t="+Date.now(); }
+    },5000);
+  </script>
+</body>
+</html>`);
+    win.document.close();
+  };
+
   return(
     <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
-      <div style={{marginBottom:24,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
         <div>
           <h1 style={{color:"#fff",fontSize:24,fontWeight:900,margin:0}}>Operations Overview</h1>
           <div style={{color:"#6b7280",fontSize:14,marginTop:4}}>Eventech Warehouse Management</div>
         </div>
-        <button
-          onClick={()=>window.open("/warehouse","_blank","noopener,noreferrer")}
-          style={{display:"flex",alignItems:"center",gap:8,background:"#161b27",border:"1px solid #2a2a3a",borderRadius:10,padding:"8px 16px",color:"#9ca3af",fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}
-          onMouseOver={e=>{e.currentTarget.style.borderColor="#ff8c0066";e.currentTarget.style.color="#ff8c00";}}
-          onMouseOut={e=>{e.currentTarget.style.borderColor="#2a2a3a";e.currentTarget.style.color="#9ca3af";}}
-        >
-          <span style={{fontSize:16}}>🖥️</span> Open on Second Screen
+        <button onClick={openWarehouseDisplay} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 18px",background:"#161b27",border:"1px solid #ff8c0044",borderRadius:10,cursor:"pointer",color:"#ff8c00",fontWeight:700,fontSize:13,fontFamily:"'DM Sans',sans-serif"}}>
+          <span style={{fontSize:16}}>🖥️</span> Warehouse Display
         </button>
       </div>
       {(faultReports||[]).filter(f=>f.status==="open").length>0&&(
@@ -313,6 +429,72 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
           </Card>
         ))}
       </div>
+      {/* EMBEDDED CALENDAR */}
+      {(()=>{
+        const now2=new Date(); const yr2=now2.getFullYear(); const mo2=now2.getMonth();
+        const todayStr=new Date().toISOString().split("T")[0];
+        const daysInMonth=new Date(yr2,mo2+1,0).getDate();
+        const firstDay=new Date(yr2,mo2,1).getDay();
+        const monthName=["January","February","March","April","May","June","July","August","September","October","November","December"][mo2];
+        const [calMonth,setCalMonth]=useState({y:yr2,m:mo2});
+        const mStr=`${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}`;
+        const dim=new Date(calMonth.y,calMonth.m+1,0).getDate();
+        const fd=new Date(calMonth.y,calMonth.m,1).getDay();
+        const cells=[];
+        for(let i=0;i<fd;i++) cells.push(null);
+        for(let i=1;i<=dim;i++) cells.push(i);
+        const rows=[];
+        for(let i=0;i<cells.length;i+=7) rows.push(cells.slice(i,i+7));
+        const DAY_NAMES=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+        return(
+          <Card style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{color:"#fff",fontWeight:800,fontSize:16}}>📅 {MONTH_NAMES[calMonth.m]} {calMonth.y}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setCalMonth(p=>{const d=new Date(p.y,p.m-1);return{y:d.getFullYear(),m:d.getMonth()}})} style={{background:"#1f2937",border:"none",color:"#9ca3af",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14}}>←</button>
+                <button onClick={()=>setCalMonth({y:yr2,m:mo2})} style={{background:"#ff8c0022",border:"1px solid #ff8c0044",color:"#ff8c00",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontWeight:700}}>Today</button>
+                <button onClick={()=>setCalMonth(p=>{const d=new Date(p.y,p.m+1);return{y:d.getFullYear(),m:d.getMonth()}})} style={{background:"#1f2937",border:"none",color:"#9ca3af",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14}}>→</button>
+              </div>
+            </div>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead><tr>{DAY_NAMES.map(d=><th key={d} style={{color:"#4b5563",fontSize:11,fontWeight:700,textAlign:"center",padding:"4px 0",textTransform:"uppercase"}}>{d}</th>)}</tr></thead>
+              <tbody>
+                {rows.map((row,ri)=>(
+                  <tr key={ri}>
+                    {Array.from({length:7},(_,ci)=>{
+                      const day=row[ci];
+                      if(!day) return <td key={ci}/>;
+                      const d=`${mStr}-${String(day).padStart(2,"0")}`;
+                      const isToday=d===todayStr;
+                      const projs=projects.filter(p=>p.startDate<=d&&p.endDate>=d&&p.status!=="completed");
+                      const qs=quotes.filter(q=>q.startDate<=d&&q.endDate>=d&&q.status!=="returned");
+                      const isOverdue=quotes.some(q=>q.endDate===d&&(q.status==="out"||q.status==="partially_returned"));
+                      return(
+                        <td key={ci} style={{textAlign:"center",padding:"2px"}}>
+                          <div style={{minHeight:52,borderRadius:8,padding:"4px 2px",background:isToday?"#ff8c0022":isOverdue?"#1a0808":"transparent",border:isToday?"1px solid #ff8c0066":"1px solid transparent",cursor:(projs.length||qs.length)?"pointer":"default"}}
+                            title={[...projs.map(p=>p.name),...qs.map(q=>q.id)].join(", ")||undefined}>
+                            <div style={{color:isToday?"#ff8c00":isOverdue?"#ef4444":"#6b7280",fontWeight:isToday?900:400,fontSize:12}}>{day}</div>
+                            {projs.slice(0,1).map(p=><div key={p.id} style={{background:"#3b82f6",borderRadius:3,padding:"1px 4px",fontSize:9,color:"#fff",fontWeight:600,marginTop:2,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{p.name}</div>)}
+                            {qs.slice(0,1).map(q=><div key={q.id} style={{background:isOverdue?"#ef4444":"#ff8c00",borderRadius:3,padding:"1px 4px",fontSize:9,color:"#fff",fontWeight:600,marginTop:1,fontFamily:"monospace"}}>{q.id}</div>)}
+                            {(projs.length+qs.length)>2&&<div style={{color:"#4b5563",fontSize:8}}>+{projs.length+qs.length-2}</div>}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{display:"flex",gap:14,marginTop:10}}>
+              {[["#3b82f6","Projects"],["#ff8c00","Quotes"],["#ef4444","Overdue"]].map(([c,l])=>(
+                <div key={l} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:2,background:c}}/><span style={{color:"#6b7280",fontSize:11}}>{l}</span></div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card>
           <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Upcoming Projects</div>
@@ -325,7 +507,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
         </Card>
         <Card>
           <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Assets by Category</div>
-          {["Audio","Lighting","AV","Rigging","Staging","Power","Cables","3-Phase"].map(cat=>{
+          {["Audio","Lighting","AV","Rigging","Staging"].map(cat=>{
             const typeIds=equipTypes.filter(t=>t.category===cat).map(t=>t.id);
             const catUnits=units.filter(u=>typeIds.includes(u.typeId));
             const total=catUnits.length, avail=catUnits.filter(u=>u.status==="available").length;
@@ -342,7 +524,7 @@ function Dashboard({units,equipTypes,projects,quotes,faultReports,prepSheets,set
 }
 
 // SCAN OUT / IN
-function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,projects,user,faultReports,setFaultReports}){
+function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicles,crew,user}){
   const [phase,setPhase]=useState("start");
   const [activeQ,setActiveQ]=useState(null);
   const [scanVal,setScanVal]=useState("");
@@ -354,15 +536,12 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
   const [showCamera,setShowCamera]=useState(false);
   const [cameraErr,setCameraErr]=useState("");
   const [scanMode,setScanMode]=useState("keyboard"); // "keyboard"|"camera"
-  // Fault interception: when a faulty unit is scanned in, show this modal
-  const [faultIntercept,setFaultIntercept]=useState(null); // {unit, type, faults:[...], pendingUnitId}
   const scanRef=useRef(null);
   const videoRef=useRef(null);
   const streamRef=useRef(null);
   const canAct=canScanOut(user.role);
   const isHOD=HOD_ROLES.includes(user.role);
   const canCreate=user.role==="admin"||user.role==="warehouse";
-  const isWarehouseOrAdmin=user.role==="admin"||user.role==="warehouse";
 
   useEffect(()=>{ if(phase==="active") setTimeout(()=>scanRef.current?.focus(),100); },[phase]);
 
@@ -446,7 +625,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
         </div>
         <Sel label="Link to Project (optional)" value={projId} onChange={setProjId}>
           <option value="">— Independent hire —</option>
-          {projects.filter(p=>p.status!=="completed").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          {INIT_PROJECTS.filter(p=>p.status!=="completed").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
         </Sel>
         <div style={{display:"flex",gap:12}}>
           <div style={{flex:1}}><TI label="Start Date" value={startDate} onChange={setStart} type="date"/></div>
@@ -511,17 +690,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
     if(!onQuote){ setWarning({msg:`${unit.serial} is not on this quote or already returned.`,pendingAdd:null}); setActiveQ(p=>({...p,_scanInput:""})); return; }
     // Already scanned?
     if((activeQ._scanned||[]).includes(unit.id)){ setWarning({msg:`${unit.serial} already scanned in.`,pendingAdd:null}); setActiveQ(p=>({...p,_scanInput:""})); return; }
-
-    // CHECK FOR OPEN FAULT REPORTS on this unit
-    const unitFaults=(faultReports||[]).filter(f=>f.unitId===unit.id&&(f.status==="open"||f.status==="acknowledged"||f.status==="in-repair"));
-    if(unitFaults.length>0){
-      const type=equipTypes.find(t=>t.id===unit.typeId);
-      setFaultIntercept({unit,type,faults:unitFaults});
-      setActiveQ(p=>({...p,_scanInput:""}));
-      return;
-    }
-
-    // Mark as scanned (no faults)
+    // Mark as scanned
     setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),unit.id],_scanInput:""}));
   }
 
@@ -669,7 +838,7 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
               <span style={{fontSize:28}}>📱</span>
               <div>
                 <div style={{color:"#fff",fontWeight:700,fontSize:15}}>Scan with Phone Camera</div>
-                <div style={{color:"#6b7280",fontSize:13}}>Use your phone or tablet camera to scan barcodes directly. Works on iOS & Android.</div>
+                <div style={{color:"#6b7280",fontSize:13}}>Use your phone or tablet camera to scan QR codes directly. Works on iOS & Android.</div>
               </div>
             </div>
             <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -841,85 +1010,15 @@ function ScanPage({quotes,setQuotes,units,setUnits,equipTypes,vehicles,setVehicl
         </div>
       )}
 
-      {/* FAULT INTERCEPT MODAL — fires when a faulty asset is scanned back in */}
-      {faultIntercept&&isWarehouseOrAdmin&&(
-        <FaultInterceptModal
-          intercept={faultIntercept}
-          user={user}
-          onAccept={(declineNote)=>{
-            // Accept = confirm faults are real → mark unit maintenance, faults stay open/acknowledged
-            const now=new Date().toISOString();
-            setFaultReports(p=>p.map(f=>{
-              if(!faultIntercept.faults.find(x=>x.id===f.id)) return f;
-              if(f.status==="open"||f.status==="acknowledged"){
-                return{...f,
-                  status:"in-repair",
-                  acknowledgedAt:f.acknowledgedAt||now,
-                  acknowledgedBy:f.acknowledgedBy||user.name,
-                  repairHistory:[...(f.repairHistory||[]),{
-                    action:"Confirmed on Scan-In",
-                    note:`Fault confirmed by ${user.name} during scan-in. Asset moved to maintenance.`,
-                    by:user.name,at:now
-                  }]
-                };
-              }
-              return f;
-            }));
-            // Mark unit as maintenance
-            setUnits(p=>p.map(u=>u.id===faultIntercept.unit.id?{...u,status:"maintenance"}:u));
-            // Still add to scanned list so return is recorded
-            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
-            setFaultIntercept(null);
-          }}
-          onDecline={(declineNote)=>{
-            // Decline = fault not confirmed, dismiss faults as false alarm
-            const now=new Date().toISOString();
-            setFaultReports(p=>p.map(f=>{
-              if(!faultIntercept.faults.find(x=>x.id===f.id)) return f;
-              return{...f,
-                status:"resolved",
-                resolvedAt:now,
-                resolvedBy:user.name,
-                repairHistory:[...(f.repairHistory||[]),{
-                  action:"Declined on Scan-In",
-                  note:`Fault report declined by ${user.name} during scan-in. Reason: ${declineNote||"No fault found on inspection."}`,
-                  by:user.name,at:now
-                }]
-              };
-            }));
-            // Proceed with normal scan-in
-            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
-            setFaultIntercept(null);
-          }}
-          onDismiss={()=>{
-            // Non-warehouse user: just note and proceed (read-only view)
-            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
-            setFaultIntercept(null);
-          }}
-        />
-      )}
-      {/* Non-warehouse fault alert (read-only) */}
-      {faultIntercept&&!isWarehouseOrAdmin&&(
-        <FaultInterceptModal
-          intercept={faultIntercept}
-          user={user}
-          readOnly
-          onDismiss={()=>{
-            setActiveQ(p=>({...p,_scanned:[...(p._scanned||[]),faultIntercept.unit.id],_scanInput:""}));
-            setFaultIntercept(null);
-          }}
-        />
-      )}
-
       {/* CAMERA MODAL — always rendered so videoRef works correctly */}
       {showCamera&&(
-        <Modal title="📷 Scan Barcode" onClose={stopCamera} width={480}>
+        <Modal title="📷 Scan QR Code" onClose={stopCamera} width={480}>
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:14}}>
             <div style={{position:"relative",width:"100%",background:"#000",borderRadius:10,overflow:"hidden",minHeight:250}}>
               <video ref={videoRef} style={{width:"100%",maxHeight:320,objectFit:"cover",display:"block"}} playsInline muted autoPlay/>
               <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:180,height:180,border:"3px solid #ff8c00",borderRadius:12,pointerEvents:"none",boxShadow:"0 0 0 1000px rgba(0,0,0,0.4)"}}/>
             </div>
-            <div style={{color:"#9ca3af",fontSize:13,textAlign:"center"}}>Point at the barcode on the equipment. Tap Scan when it's in the orange box.</div>
+            <div style={{color:"#9ca3af",fontSize:13,textAlign:"center"}}>Point at the QR code on the equipment. Tap Scan when it's in the orange box.</div>
             {cameraErr&&<div style={{color:"#ef4444",fontSize:13,fontWeight:600,textAlign:"center",background:"#1a0808",borderRadius:8,padding:"8px 12px",width:"100%"}}>{cameraErr}</div>}
             <div style={{color:"#6b7280",fontSize:11,textAlign:"center"}}>Works on Chrome (Android) and Safari (iOS). If camera doesn't appear, check browser permissions.</div>
             <div style={{display:"flex",gap:10,width:"100%"}}>
@@ -1123,11 +1222,20 @@ function QuotesPage({quotes,setQuotes,units,equipTypes,projects,user}){
 
 // ASSETS
 function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStock,quotes,user}){
+  const BUILT_IN_CATS=["Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase"];
+  const [extraCats,setExtraCats]=useState(()=>{ try{ const s=localStorage.getItem("et_extraCats"); return s?JSON.parse(s):[]; }catch{ return []; } });
+  const allCats=[...BUILT_IN_CATS,...extraCats];
+  const saveExtraCats=(cats)=>{ setExtraCats(cats); try{ localStorage.setItem("et_extraCats",JSON.stringify(cats)); }catch{}; };
+  const addCategory=(name)=>{ const t=name.trim(); if(!t||allCats.map(c=>c.toLowerCase()).includes(t.toLowerCase())) return; saveExtraCats([...extraCats,t]); setNewCatName(""); };
+  const removeCategory=(cat)=>{ const inUse=equipTypes.some(t=>t.category===cat); if(inUse){ alert(`Cannot remove "${cat}" — ${equipTypes.filter(t=>t.category===cat).length} type(s) still use it.`); return; } saveExtraCats(extraCats.filter(c=>c!==cat)); };
+
   const [selType,setSelType]=useState(null); const [selUnit,setSelUnit]=useState(null); const [addType,setAddType]=useState(false); const [addUnit,setAddUnit]=useState(null); const [filter,setFilter]=useState("All"); const [search,setSearch]=useState("");
   const [importResult,setImportResult]=useState(null);
   const [showImport,setShowImport]=useState(false);
   const [confirmDelete,setConfirmDelete]=useState(null);
-  const [showQRPrint,setShowQRPrint]=useState(false); // type to delete
+  const [showQRPrint,setShowQRPrint]=useState(false);
+  const [showCatManager,setShowCatManager]=useState(false);
+  const [newCatName,setNewCatName]=useState("");
   const importRef=useRef(null);
   const canEdit=userIsManager(user)||user.role==="warehouse";
 
@@ -1157,7 +1265,8 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
         <h1 style={{color:"#fff",fontSize:22,fontWeight:900,margin:0}}>Assets</h1>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Btn outline onClick={()=>exportAssetsToCSV(equipTypes,units)} color="#10b981">⬇ Export CSV</Btn>
-          <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print Barcode Sheet</Btn>
+          {canEdit&&<Btn outline onClick={()=>setShowCatManager(true)} color="#3b82f6">⚙️ Categories</Btn>}
+          <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print QR Sheet</Btn>
           {canEdit&&<><input ref={importRef} type="file" accept=".csv,.txt" onChange={handleImport} style={{display:"none"}}/>
           <Btn outline onClick={()=>importRef.current?.click()} color="#3b82f6">⬆ Import CSV</Btn></>}
           {userIsManager(user)&&<Btn onClick={()=>setAddType(true)}>+ Add Type</Btn>}
@@ -1165,7 +1274,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
       </div>
       <div style={{display:"flex",gap:10,marginBottom:18,flexWrap:"wrap"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{padding:"8px 14px",background:"#161b27",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none",minWidth:180}}/>
-        {["All","Audio","Lighting","AV","LED","Rigging","Staging","Trussing","Cables","3-Phase"].map(c=>(
+        {["All",...allCats].map(c=>(
           <button key={c} onClick={()=>setFilter(c)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #2a2a3a",cursor:"pointer",fontSize:12,fontWeight:600,background:filter===c?"#ff8c00":"#161b27",color:filter===c?"#fff":"#9ca3af"}}>{c}</button>
         ))}
       </div>
@@ -1193,7 +1302,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
               <div><div style={{color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>Out</div><div style={{color:"#ff8c00",fontWeight:800,fontSize:20,fontFamily:"monospace"}}>{out}</div></div>
               {maint>0&&<div><div style={{color:"#6b7280",fontSize:10,textTransform:"uppercase"}}>Maint</div><div style={{color:"#ef4444",fontWeight:800,fontSize:20,fontFamily:"monospace"}}>{maint}</div></div>}
             </div>
-            {isCable&&cableData&&<div style={{color:"#4b5563",fontSize:12,marginBottom:8,fontFamily:"monospace"}}>Barcode: {cableData.barcode}</div>}
+            {isCable&&cableData&&<div style={{color:"#4b5563",fontSize:12,marginBottom:8,fontFamily:"monospace"}}>QR: {cableData.barcode}</div>}
             {!isCable&&(()=>{
               const svcStatus=typeUnits.map(u=>serviceStatus(u));
               const overdueCount=svcStatus.filter(s=>s==="overdue").length;
@@ -1231,6 +1340,65 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
             <Btn outline onClick={()=>setConfirmDelete(null)} color="#6b7280">Cancel</Btn>
             <Btn color="#ef4444" onClick={()=>deleteType(confirmDelete)}>Yes, Remove</Btn>
           </div>
+        </Modal>
+      )}
+
+      {/* CATEGORY MANAGER MODAL */}
+      {showCatManager&&(
+        <Modal title="⚙️ Manage Categories" onClose={()=>setShowCatManager(false)} width={480}>
+          <div style={{color:"#6b7280",fontSize:13,marginBottom:16}}>Add or remove equipment categories. Built-in categories cannot be removed. Custom categories can only be removed if no equipment uses them.</div>
+
+          {/* Built-in categories */}
+          <div style={{marginBottom:16}}>
+            <div style={{color:"#9ca3af",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Built-in Categories</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {BUILT_IN_CATS.map(c=>(
+                <div key={c} style={{background:"#1f2937",borderRadius:8,padding:"6px 14px",display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:10,height:10,borderRadius:2,background:CAT_COLORS[c]||"#6b7280"}}/>
+                  <span style={{color:"#9ca3af",fontSize:13,fontWeight:600}}>{c}</span>
+                  <span style={{color:"#4b5563",fontSize:10}}>built-in</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom categories */}
+          <div style={{marginBottom:16}}>
+            <div style={{color:"#9ca3af",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Custom Categories</div>
+            {extraCats.length===0&&<div style={{color:"#4b5563",fontSize:13,marginBottom:8}}>No custom categories added yet.</div>}
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {extraCats.map(c=>{
+                const inUse=equipTypes.some(t=>t.category===c);
+                return(
+                  <div key={c} style={{background:"#1a1200",border:"1px solid #ff8c0033",borderRadius:8,padding:"6px 14px",display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{color:"#ff8c00",fontSize:13,fontWeight:600}}>{c}</span>
+                    {inUse&&<span style={{color:"#4b5563",fontSize:10}}>{equipTypes.filter(t=>t.category===c).length} items</span>}
+                    {!inUse&&(
+                      <button onClick={()=>removeCategory(c)} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>✕</button>
+                    )}
+                    {inUse&&<span style={{color:"#4b5563",fontSize:10}}>in use</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Add new category */}
+          {canEdit&&(
+            <div style={{borderTop:"1px solid #1f2937",paddingTop:14}}>
+              <Lbl>Add New Category</Lbl>
+              <div style={{display:"flex",gap:8,marginTop:6}}>
+                <input value={newCatName} onChange={e=>setNewCatName(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&addCategory(newCatName)}
+                  placeholder="e.g. Staging, Backline, Staging…"
+                  style={{flex:1,padding:"9px 12px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}/>
+                <Btn disabled={!newCatName.trim()} onClick={()=>addCategory(newCatName)} color="#ff8c00">Add</Btn>
+              </div>
+              {newCatName&&allCats.map(c=>c.toLowerCase()).includes(newCatName.trim().toLowerCase())&&(
+                <div style={{color:"#ef4444",fontSize:12,marginTop:4}}>This category already exists.</div>
+              )}
+            </div>
+          )}
         </Modal>
       )}
 
@@ -1322,7 +1490,7 @@ function AddUnitForm({typeId,units,onSave,onCancel}){
   const bcExists=units.some(u=>u.barcode.toUpperCase()===barcode.trim().toUpperCase())&&barcode.trim().toUpperCase()!==newBC;
   return(<div style={{display:"flex",flexDirection:"column",gap:12}}>
     <TI label="Serial Number" value={serial} onChange={setSerial} placeholder="e.g. CDJ-A005" mono/>
-    <TI label="Barcode (Code 128)" value={barcode} onChange={setBarcode} mono error={bcExists?"Barcode already exists!":""}/>
+    <TI label="Barcode / QR Code" value={barcode} onChange={setBarcode} mono error={bcExists?"Barcode already exists!":""}/>
     {barcode&&<div style={{display:"flex",justifyContent:"center",padding:"10px 0"}}><QRSvg code={barcode.toUpperCase()} size={80}/></div>}
     <div style={{display:"flex",gap:10}}>
       <Btn outline onClick={onCancel} color="#6b7280">Cancel</Btn>
@@ -1330,11 +1498,13 @@ function AddUnitForm({typeId,units,onSave,onCancel}){
     </div>
   </div>);
 }
-function AddTypeForm({onSave,onCancel}){
-  const [name,setName]=useState(""); const [cat,setCat]=useState("Audio"); const [notes,setNotes]=useState(""); const [img,setImg]=useState(null);
+function AddTypeForm({onSave,onCancel,categories}){
+  const BUILT_IN=["Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase"];
+  const cats=categories||BUILT_IN;
+  const [name,setName]=useState(""); const [cat,setCat]=useState(cats[0]||"Audio"); const [notes,setNotes]=useState(""); const [img,setImg]=useState(null);
   return(<div style={{display:"flex",flexDirection:"column",gap:12}}>
     <TI label="Equipment Name / Model" value={name} onChange={setName} placeholder="e.g. Shure SM58"/>
-    <Sel label="Category" value={cat} onChange={setCat}>{["Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase"].map(c=><option key={c}>{c}</option>)}</Sel>
+    <Sel label="Category" value={cat} onChange={setCat}>{cats.map(c=><option key={c}>{c}</option>)}</Sel>
     <TI label="Notes" value={notes} onChange={setNotes} placeholder="Any notes…"/>
     <div>
       <Lbl>Equipment Image (optional)</Lbl>
@@ -1349,160 +1519,33 @@ function AddTypeForm({onSave,onCancel}){
 }
 
 
-// FAULT INTERCEPT MODAL — shown when a reported-faulty asset is scanned back in
-function FaultInterceptModal({intercept,user,onAccept,onDecline,onDismiss,readOnly=false}){
-  const {unit,type,faults}=intercept;
-  const [declineNote,setDeclineNote]=useState("");
-  const [mode,setMode]=useState(null); // null | "accept" | "decline"
-  const activeFaults=faults.filter(f=>f.status!=="resolved");
-  const allFaults=faults; // includes resolved (for history)
-
-  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
-
-  return(
-    <Modal title="🚨 Faulty Asset Detected on Scan-In" onClose={readOnly?onDismiss:null} width={600}>
-      {/* Alert header */}
-      <div style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",gap:14,alignItems:"flex-start"}}>
-        <span style={{fontSize:32,flexShrink:0}}>⚠️</span>
-        <div>
-          <div style={{color:"#ef4444",fontWeight:900,fontSize:17,marginBottom:4}}>This asset has open fault reports!</div>
-          <div style={{color:"#9ca3af",fontSize:13}}>
-            <strong style={{color:"#e5e7eb"}}>{type?.name||unit.serial}</strong>
-            {" · "}Serial: <span style={{fontFamily:"monospace",color:"#ff8c00"}}>{unit.serial}</span>
-            {" · "}Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{unit.barcode}</span>
-          </div>
-          <div style={{color:"#6b7280",fontSize:12,marginTop:4}}>
-            {activeFaults.length} active fault report{activeFaults.length!==1?"s":""} found · {allFaults.length} total in history
-          </div>
-        </div>
-      </div>
-
-      {/* Fault list */}
-      <div style={{marginBottom:20}}>
-        <div style={{color:"#9ca3af",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Active Fault Reports</div>
-        <div style={{maxHeight:280,overflowY:"auto",display:"flex",flexDirection:"column",gap:8}}>
-          {activeFaults.map((f,i)=>(
-            <div key={f.id} style={{background:"#0d1117",border:`1px solid ${STATUS_C[f.status]||"#2a2a3a"}44`,borderRadius:10,padding:"12px 14px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{background:STATUS_C[f.status]+"22",color:STATUS_C[f.status],border:`1px solid ${STATUS_C[f.status]}44`,borderRadius:6,padding:"2px 9px",fontSize:11,fontWeight:700,textTransform:"uppercase"}}>{f.status==="in-repair"?"In Repair":f.status}</span>
-                  <span style={{color:"#6b7280",fontSize:11}}>#{i+1}</span>
-                </div>
-                <span style={{color:"#4b5563",fontSize:11}}>Logged by <strong style={{color:"#ff8c00"}}>{f.loggedBy}</strong> · {fmt(f.loggedAt)}</span>
-              </div>
-              <div style={{color:"#e5e7eb",fontSize:13,background:"#161b27",borderRadius:8,padding:"8px 12px",marginBottom:f.photo?8:0}}>
-                {f.notes||<span style={{color:"#4b5563",fontStyle:"italic"}}>No notes provided.</span>}
-              </div>
-              {f.photo&&(
-                <div style={{marginTop:8}}>
-                  <img src={f.photo} alt="fault" style={{width:"100%",maxHeight:180,objectFit:"contain",borderRadius:8,border:"1px solid #2a2a3a",background:"#0d1117"}}/>
-                  <div style={{color:"#4b5563",fontSize:10,marginTop:4}}>Photo attached with report</div>
-                </div>
-              )}
-              {f.location&&<div style={{color:"#6b7280",fontSize:12,marginTop:6}}>📍 Location: <strong style={{color:"#e5e7eb"}}>{f.location}</strong></div>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {readOnly?(
-        <div style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
-          <div style={{color:"#f59e0b",fontWeight:700,fontSize:13}}>⚠️ FYI — This asset has been flagged as faulty</div>
-          <div style={{color:"#9ca3af",fontSize:13,marginTop:4}}>Warehouse or admin will inspect and process this fault on return. Proceed with scan-in.</div>
-          <div style={{marginTop:12}}><Btn full color="#f59e0b" onClick={onDismiss}>Understood — Continue Scan In</Btn></div>
-        </div>
-      ):(
-        <>
-          {!mode&&(
-            <>
-              <div style={{color:"#9ca3af",fontSize:13,marginBottom:14}}>
-                As warehouse/admin, you need to decide: <strong style={{color:"#fff"}}>is this fault confirmed?</strong>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <button onClick={()=>setMode("accept")} style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"16px 14px",cursor:"pointer",textAlign:"left"}}>
-                  <div style={{color:"#ef4444",fontWeight:800,fontSize:15,marginBottom:6}}>✓ Accept Fault</div>
-                  <div style={{color:"#9ca3af",fontSize:12}}>Confirm the fault is real. Asset goes directly to maintenance. Fault stays in reports.</div>
-                </button>
-                <button onClick={()=>setMode("decline")} style={{background:"#0d1a0d",border:"2px solid #10b981",borderRadius:12,padding:"16px 14px",cursor:"pointer",textAlign:"left"}}>
-                  <div style={{color:"#10b981",fontWeight:800,fontSize:15,marginBottom:6}}>✗ Decline / No Fault Found</div>
-                  <div style={{color:"#9ca3af",fontSize:12}}>Inspected — no real fault. Report will be closed. Asset returns to available.</div>
-                </button>
-              </div>
-            </>
-          )}
-
-          {mode==="accept"&&(
-            <div style={{background:"#1a0808",border:"2px solid #ef444466",borderRadius:12,padding:16}}>
-              <div style={{color:"#ef4444",fontWeight:800,fontSize:15,marginBottom:8}}>✓ Accepting Fault — Sending to Maintenance</div>
-              <div style={{color:"#9ca3af",fontSize:13,marginBottom:14}}>
-                The asset will be set to <strong style={{color:"#ef4444"}}>MAINTENANCE</strong> status. The fault report will move to <strong style={{color:"#8b5cf6"}}>In Repair</strong>. Scan-in will still be recorded.
-              </div>
-              <div style={{display:"flex",gap:10}}>
-                <Btn outline onClick={()=>setMode(null)} color="#6b7280">← Back</Btn>
-                <Btn color="#ef4444" onClick={()=>onAccept()}>🔧 Confirm — Move to Maintenance</Btn>
-              </div>
-            </div>
-          )}
-
-          {mode==="decline"&&(
-            <div style={{background:"#0d1a0d",border:"2px solid #10b98166",borderRadius:12,padding:16}}>
-              <div style={{color:"#10b981",fontWeight:800,fontSize:15,marginBottom:8}}>✗ Declining Fault Report</div>
-              <div style={{color:"#9ca3af",fontSize:13,marginBottom:10}}>Add a note explaining why the fault was declined (optional but recommended for audit trail).</div>
-              <div style={{marginBottom:12}}>
-                <Lbl>Decline Reason / Notes</Lbl>
-                <textarea value={declineNote} onChange={e=>setDeclineNote(e.target.value)} rows={3}
-                  placeholder="e.g. Tested on return — no fault found. Connector was loose, now fixed. Works correctly."
-                  style={{width:"100%",padding:"9px 12px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{display:"flex",gap:10}}>
-                <Btn outline onClick={()=>setMode(null)} color="#6b7280">← Back</Btn>
-                <Btn color="#10b981" onClick={()=>onDecline(declineNote)}>✓ Confirm — No Fault, Close Report</Btn>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-    </Modal>
-  );
-}
-
 // FAULT REPORTS
 function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
   const [showNew,setShowNew]=useState(false);
   const [detail,setDetail]=useState(null);
   const [repairModal,setRepairModal]=useState(null);
   const [filterSt,setFilterSt]=useState("all");
-  const [historyUnit,setHistoryUnit]=useState(null); // show full history for a unit
   const isWarehouse=user.role==="admin"||user.role==="warehouse";
+  const canReport=canReportFault(user.role);
   const fileRef=useRef(null);
 
   const filtered=faultReports.filter(f=>filterSt==="all"||f.status===filterSt);
-  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981",declined:"#10b981"};
+  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
 
   const acknowledge=(id)=>setFaultReports(p=>p.map(f=>f.id===id?{...f,status:"acknowledged",acknowledgedAt:new Date().toISOString(),acknowledgedBy:user.name}:f));
 
   // Check if this unit has recurring faults
   const recurringCount=(unitId)=>faultReports.filter(f=>f.unitId===unitId).length;
-  const openCount=faultReports.filter(f=>f.status==="open"||f.status==="acknowledged"||f.status==="in-repair").length;
 
   return(
     <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <h1 style={{color:"#fff",fontSize:22,fontWeight:900,margin:0}}>Fault Reports</h1>
-          <div style={{color:"#6b7280",fontSize:13,marginTop:3}}>Anyone can log a fault. Warehouse &amp; admin acknowledge and resolve. Full history is always retained.</div>
+          <div style={{color:"#6b7280",fontSize:13,marginTop:3}}>HODs log faults from site. Warehouse manages repairs and resolution notes.</div>
         </div>
-        <Btn onClick={()=>setShowNew(true)} color="#ef4444">🚨 Log Fault</Btn>
+        {canReport&&<Btn onClick={()=>setShowNew(true)} color="#ef4444">🚨 Log Fault</Btn>}
       </div>
-
-      {/* Summary bar */}
-      {openCount>0&&(
-        <div style={{background:"#1a0808",border:"1px solid #ef444433",borderRadius:10,padding:"10px 16px",marginBottom:18,display:"flex",gap:20,alignItems:"center",flexWrap:"wrap"}}>
-          <span style={{color:"#ef4444",fontWeight:800,fontSize:14}}>🚨 {openCount} Active Fault{openCount!==1?"s":""}</span>
-          <span style={{color:"#6b7280",fontSize:12}}>{faultReports.filter(f=>f.status==="open").length} open · {faultReports.filter(f=>f.status==="acknowledged").length} acknowledged · {faultReports.filter(f=>f.status==="in-repair").length} in repair</span>
-          {!isWarehouse&&<span style={{color:"#f59e0b",fontSize:12}}>Warehouse team will review and process these on equipment return.</span>}
-        </div>
-      )}
 
       <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
         {["all","open","acknowledged","in-repair","resolved"].map(s=>(
@@ -1517,16 +1560,15 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
           const unit=units.find(u=>u.id===f.unitId);
           const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
           const recur=f.unitId?recurringCount(f.unitId):0;
-          const statusColor=STATUS_C[f.status]||"#6b7280";
           return(
-            <Card key={f.id} style={{borderLeft:`4px solid ${statusColor}`}}>
+            <Card key={f.id} style={{borderLeft:`4px solid ${STATUS_C[f.status]||"#2a2a3a"}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
                 <div style={{flex:1}}>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,flexWrap:"wrap"}}>
                     <div style={{color:"#fff",fontWeight:800,fontSize:15}}>🚨 {type?.name||f.assetName||"Unknown Asset"}</div>
-                    <Badge label={f.status==="in-repair"?"In Repair":f.status} color={statusColor}/>
+                    <Badge label={f.status==="in-repair"?"In Repair":f.status} color={STATUS_C[f.status]||"#6b7280"}/>
                     <Badge label={f.category} color={CAT_COLORS[f.category]||"#6b7280"}/>
-                    {recur>1&&<span style={{color:"#ef4444",fontSize:11,fontWeight:700,background:"#1a0808",padding:"2px 8px",borderRadius:6,cursor:"pointer"}} onClick={()=>setHistoryUnit(unit)}>⚠️ {recur} faults on this unit — view history</span>}
+                    {recur>1&&<span style={{color:"#ef4444",fontSize:11,fontWeight:700,background:"#1a0808",padding:"2px 8px",borderRadius:6}}>⚠️ {recur} faults on this unit</span>}
                   </div>
                   <div style={{color:"#9ca3af",fontSize:13,marginBottom:4}}>
                     Serial: <span style={{fontFamily:"monospace",color:"#e5e7eb"}}>{unit?.serial||"N/A"}</span>
@@ -1544,43 +1586,34 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
                   {/* Repair history timeline */}
                   {(f.repairHistory||[]).length>0&&(
                     <div style={{marginTop:10,borderTop:"1px solid #1f2937",paddingTop:10}}>
-                      <div style={{color:"#8b5cf6",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>🔧 Action History</div>
-                      {f.repairHistory.map((r,i)=>{
-                        const actionColor=r.action.includes("Declined")||r.action.includes("No Fault")?"#10b981":r.action.includes("Confirmed")||r.action.includes("Repair")?"#8b5cf6":r.action.includes("Resolved")?"#10b981":"#f59e0b";
-                        return(
-                          <div key={i} style={{background:"#0d1117",borderRadius:8,padding:"10px 12px",marginBottom:6,border:`1px solid ${actionColor}22`}}>
-                            <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:4,marginBottom:4}}>
-                              <span style={{color:actionColor,fontWeight:700,fontSize:12}}>{r.action}</span>
-                              <span style={{color:"#4b5563",fontSize:11}}>{r.by} · {fmt(r.at)}</span>
-                            </div>
-                            <div style={{color:"#9ca3af",fontSize:12}}>{r.note}</div>
-                            {r.bookedIn&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3}}>🏭 Booked in to: <strong>{r.repairShop}</strong> · Expected back: {r.expectedReturn}</div>}
-                            {r.returnDoc&&<div style={{marginTop:6}}><img src={r.returnDoc} alt="repair doc" style={{maxWidth:120,borderRadius:6,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:r.returnDoc,notes:r.note})}/><div style={{color:"#4b5563",fontSize:10,marginTop:2}}>Repair document</div></div>}
+                      <div style={{color:"#8b5cf6",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>🔧 Repair History</div>
+                      {f.repairHistory.map((r,i)=>(
+                        <div key={i} style={{background:"#0d1117",borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid #8b5cf633"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:4,marginBottom:4}}>
+                            <span style={{color:"#8b5cf6",fontWeight:700,fontSize:12}}>{r.action}</span>
+                            <span style={{color:"#4b5563",fontSize:11}}>{r.by} · {fmt(r.at)}</span>
                           </div>
-                        );
-                      })}
+                          <div style={{color:"#9ca3af",fontSize:12}}>{r.note}</div>
+                          {r.bookedIn&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3}}>🏭 Booked in to: <strong>{r.repairShop}</strong> · Expected back: {r.expectedReturn}</div>}
+                          {r.returnDoc&&<div style={{marginTop:6}}><img src={r.returnDoc} alt="repair doc" style={{maxWidth:120,borderRadius:6,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:r.returnDoc,notes:r.note})}/><div style={{color:"#4b5563",fontSize:10,marginTop:2}}>Repair document</div></div>}
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   {f.status==="acknowledged"&&<div style={{color:"#f59e0b",fontSize:12,marginTop:6}}>✓ Acknowledged by {f.acknowledgedBy} — {fmt(f.acknowledgedAt)}</div>}
-                  {(f.status==="resolved")&&<div style={{color:"#10b981",fontSize:12,marginTop:6}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
+                  {f.status==="resolved"&&<div style={{color:"#10b981",fontSize:12,marginTop:6}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
                   {f.photo&&<img src={f.photo} alt="fault" style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid #2a2a3a",cursor:"pointer"}} onClick={()=>setDetail({photo:f.photo,notes:f.notes})}/>}
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {f.photo&&<Btn small outline onClick={()=>setDetail({photo:f.photo,notes:f.notes})} color="#9ca3af">View Photo</Btn>}
-                    {unit&&<Btn small outline onClick={()=>setHistoryUnit(unit)} color="#6b7280">📋 Unit History</Btn>}
-                    {/* Warehouse/admin only actions */}
                     {isWarehouse&&f.status==="open"&&<Btn small color="#f59e0b" onClick={()=>acknowledge(f.id)}>Acknowledge</Btn>}
                     {isWarehouse&&(f.status==="acknowledged"||f.status==="in-repair")&&(
                       <Btn small color="#8b5cf6" onClick={()=>setRepairModal(f)}>🔧 Add Repair Note</Btn>
                     )}
                     {isWarehouse&&f.status==="in-repair"&&(
-                      <Btn small color="#10b981" onClick={()=>setRepairModal({...f,_forceResolve:true})}>✓ Mark Resolved</Btn>
-                    )}
-                    {/* Note for non-warehouse viewing resolved */}
-                    {!isWarehouse&&(f.status==="open"||f.status==="acknowledged")&&(
-                      <span style={{color:"#4b5563",fontSize:11,textAlign:"right",maxWidth:120}}>Warehouse will process</span>
+                      <Btn small color="#10b981" onClick={()=>setFaultReports(p=>p.map(x=>x.id===f.id?{...x,status:"resolved",resolvedAt:new Date().toISOString(),resolvedBy:user.name}:x))}>Mark Resolved</Btn>
                     )}
                   </div>
                 </div>
@@ -1606,67 +1639,20 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
       )}
 
       {repairModal&&(
-        <Modal title={repairModal._forceResolve?"✓ Mark as Resolved":"🔧 Add Repair Note"} onClose={()=>setRepairModal(null)} width={520}>
-          <RepairNoteForm fault={repairModal} user={user} forceResolve={repairModal._forceResolve}
+        <Modal title="🔧 Add Repair Note" onClose={()=>setRepairModal(null)} width={520}>
+          <RepairNoteForm fault={repairModal} user={user}
             onSave={(entry)=>{
               setFaultReports(p=>p.map(f=>{
                 if(f.id!==repairModal.id) return f;
                 const history=[...(f.repairHistory||[]),entry];
-                const newStatus=entry.action==="Booked In for Repair"?"in-repair":entry.action==="Resolved"||repairModal._forceResolve?"resolved":f.status;
+                const newStatus=entry.action==="Booked In for Repair"?"in-repair":entry.action==="Resolved"?"resolved":f.status;
                 return{...f,repairHistory:history,status:newStatus,
                   resolvedAt:newStatus==="resolved"?new Date().toISOString():f.resolvedAt,
                   resolvedBy:newStatus==="resolved"?user.name:f.resolvedBy};
               }));
-              // If resolved, set unit back to available (if it was in maintenance)
-              if(repairModal._forceResolve||repairModal.status==="in-repair"){
-                const fUnit=units.find(u=>u.id===repairModal.unitId);
-                if(fUnit&&fUnit.status==="maintenance"){
-                  // setUnits would be needed here — handled via prop if passed
-                }
-              }
               setRepairModal(null);
             }}
             onCancel={()=>setRepairModal(null)}/>
-        </Modal>
-      )}
-
-      {/* Unit fault history modal */}
-      {historyUnit&&(
-        <Modal title={`📋 Full Fault History — ${equipTypes.find(t=>t.id===historyUnit.typeId)?.name||historyUnit.serial}`} onClose={()=>setHistoryUnit(null)} width={620}>
-          <div style={{marginBottom:12}}>
-            <div style={{color:"#9ca3af",fontSize:13}}>Serial: <span style={{fontFamily:"monospace",color:"#ff8c00"}}>{historyUnit.serial}</span> · Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{historyUnit.barcode}</span></div>
-            <div style={{color:"#6b7280",fontSize:12,marginTop:4}}>All fault reports ever logged against this unit — nothing is deleted.</div>
-          </div>
-          {faultReports.filter(f=>f.unitId===historyUnit.id).length===0&&(
-            <div style={{color:"#4b5563",textAlign:"center",padding:"24px 0"}}>No fault history on this unit.</div>
-          )}
-          <div style={{display:"flex",flexDirection:"column",gap:10,maxHeight:"60vh",overflowY:"auto"}}>
-            {faultReports.filter(f=>f.unitId===historyUnit.id).sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt)).map((f,i)=>{
-              const STATUS_C2={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
-              return(
-                <div key={f.id} style={{background:"#0d1117",border:`1px solid ${STATUS_C2[f.status]||"#2a2a3a"}33`,borderRadius:10,padding:"12px 14px"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:6}}>
-                    <span style={{color:STATUS_C2[f.status]||"#6b7280",fontWeight:700,fontSize:13}}>{f.status==="in-repair"?"In Repair":f.status.charAt(0).toUpperCase()+f.status.slice(1)}</span>
-                    <span style={{color:"#4b5563",fontSize:11}}>#{i+1} · {fmt(f.loggedAt)}</span>
-                  </div>
-                  <div style={{color:"#e5e7eb",fontSize:13,marginBottom:4}}>{f.notes||<span style={{color:"#4b5563",fontStyle:"italic"}}>No notes</span>}</div>
-                  <div style={{color:"#6b7280",fontSize:12}}>Logged by <strong style={{color:"#ff8c00"}}>{f.loggedBy}</strong> · 📍 {f.location||"Location not specified"}</div>
-                  {f.photo&&<div style={{marginTop:8}}><img src={f.photo} alt="fault" style={{width:80,height:80,objectFit:"cover",borderRadius:8,border:"1px solid #2a2a3a"}}/></div>}
-                  {(f.repairHistory||[]).length>0&&(
-                    <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #1f2937"}}>
-                      {f.repairHistory.map((r,j)=>(
-                        <div key={j} style={{color:"#6b7280",fontSize:12,marginBottom:4}}>
-                          <span style={{color:"#8b5cf6",fontWeight:700}}>{r.action}</span> — {r.note} <span style={{color:"#4b5563"}}>({r.by} · {fmt(r.at)})</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {f.resolvedAt&&<div style={{color:"#10b981",fontSize:12,marginTop:4}}>✓ Resolved by {f.resolvedBy} — {fmt(f.resolvedAt)}</div>}
-                </div>
-              );
-            })}
-          </div>
-          <div style={{marginTop:16}}><Btn full outline onClick={()=>setHistoryUnit(null)} color="#6b7280">Close</Btn></div>
         </Modal>
       )}
     </div>
@@ -1675,8 +1661,8 @@ function FaultReports({faultReports,setFaultReports,units,equipTypes,user}){
 
 
 // REPAIR NOTE FORM
-function RepairNoteForm({fault,user,onSave,onCancel,forceResolve=false}){
-  const [action,setAction]=useState(forceResolve?"Resolved":"Inspection & Note");
+function RepairNoteForm({fault,user,onSave,onCancel}){
+  const [action,setAction]=useState("Inspection & Note");
   const [note,setNote]=useState("");
   const [bookedIn,setBookedIn]=useState(false);
   const [repairShop,setRepairShop]=useState("");
@@ -2952,32 +2938,31 @@ function QRPrintSheet({units,equipTypes,onClose}){
   const [filterType,setFilterType]=useState("all");
   const filtered=filterType==="all"?units:units.filter(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); return t?.category===filterType; });
 
-  const makeBarcodesvg=(code,width=130)=>{
-    const bars=code128Bars(code);
-    const totalUnits=bars.reduce((s,b)=>s+b.w,0);
-    const mw=width/totalUnits;
-    const bh=Math.round(width*0.45);
-    let x=0;
-    const rects=bars.map(b=>{ const rx=x.toFixed(2); x+=b.w*mw; return b.dark?`<rect x="${rx}" y="0" width="${(b.w*mw).toFixed(2)}" height="${bh}" fill="#000"/>`:""; }).join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${bh}" style="display:block;margin:0 auto;background:#fff">${rects}</svg>`;
+  const makeQRsvg=(code,size=80)=>{
+    let hash=0; for(let i=0;i<code.length;i++) hash=(hash*31+code.charCodeAt(i))>>>0;
+    const n=10,cell=Math.floor(size/n);
+    const cells=Array.from({length:n*n},(_,i)=>{ const r=Math.floor(i/n),c=i%n; return((hash^(r*97+c*31)^(r<<4)^(c<<2))%7)<3; });
+    [0,1,2,3,10,11,12,13,20,21,22,23,30,31,32,33,6,7,16,17,26,27,36,37,66,67,76,77,86,87,96,97,60,61,70,71,80,81,90,91].forEach(i=>{if(i<cells.length)cells[i]=true;});
+    const rects=cells.map((on,i)=>on?`<rect x="${(i%n)*cell}" y="${Math.floor(i/n)*cell}" width="${cell}" height="${cell}" fill="#000"/>`:"").join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="background:#fff;display:block;margin:0 auto">${rects}</svg>`;
   };
   const print=()=>{
     const win=window.open("","_blank");
     const rows=filtered.map(u=>{
       const t=equipTypes.find(x=>x.id===u.typeId);
-      const barSvg=makeBarcodesvg(u.barcode,130);
-      return `<div style="display:inline-block;border:2px solid #ddd;border-radius:8px;padding:10px;margin:6px;text-align:center;width:150px;vertical-align:top;font-family:sans-serif">
+      const qrSvg=makeQRsvg(u.barcode,90);
+      return `<div style="display:inline-block;border:2px solid #ddd;border-radius:8px;padding:10px;margin:6px;text-align:center;width:130px;vertical-align:top;font-family:sans-serif">
         <div style="font-size:9px;font-weight:700;margin-bottom:4px;color:#333;word-break:break-word;min-height:24px">${t?.name||""}</div>
-        ${barSvg}
+        ${qrSvg}
         <div style="font-family:monospace;font-size:9px;font-weight:800;background:#f5f5f5;padding:3px 4px;border-radius:4px;margin-top:5px;word-break:break-all">${u.barcode}</div>
         <div style="font-size:8px;color:#666;margin-top:2px">${u.serial}</div>
         <div style="font-size:7px;color:#999;margin-top:1px">${t?.category||""}</div>
       </div>`;
     }).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Eventech Barcode Sheet</title>
+    win.document.write(`<!DOCTYPE html><html><head><title>Eventech QR Sheet</title>
       <style>body{font-family:sans-serif;padding:16px}@media print{.no-print{display:none}}</style></head><body>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH — Asset Barcodes</h2>
+        <div><h2 style="margin:0;color:#ff8c00">⚡ EVENTECH — Asset QR Codes</h2>
         <p style="margin:2px 0;color:#666;font-size:11px">Printed: ${new Date().toLocaleDateString("en-ZA")} · ${filtered.length} assets</p></div>
         <button class="no-print" onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px">🖨️ Print</button>
       </div><hr style="margin-bottom:10px"/>
@@ -2986,8 +2971,8 @@ function QRPrintSheet({units,equipTypes,onClose}){
   };
 
   return(
-    <Modal title="🖨️ Print Barcode Sheet" onClose={onClose} width={520}>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:14}}>Generate a printable sheet of Code 128 barcodes for all assets. Stick them on your gear for quick scanner scanning.</div>
+    <Modal title="🖨️ Print QR Code Sheet" onClose={onClose} width={520}>
+      <div style={{color:"#6b7280",fontSize:13,marginBottom:14}}>Generate a printable sheet of QR codes for all assets. Stick them on your gear for quick scanning.</div>
       <Sel label="Filter by Category" value={filterType} onChange={setFilterType}>
         <option value="all">All Assets ({units.length})</option>
         {["Audio","Lighting","AV","LED","Rigging","Staging","Power"].map(c=>{
@@ -3779,6 +3764,647 @@ function UploadPrepForm({user,onSave,onCancel}){
   );
 }
 
+
+
+// ── WAREHOUSE DISPLAY ─────────────────────────────────────────────────────────
+// Live operations overview — designed to run on a warehouse monitor
+function WarehouseDisplay({units,equipTypes,projects,quotes,faultReports}){
+  const [now,setNow]=useState(new Date());
+  useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),1000); return()=>clearInterval(t); },[]);
+
+  const today=new Date().toISOString().split("T")[0];
+  const totalUnits=units.length;
+  const outUnits=units.filter(u=>u.status==="out").length;
+  const maintUnits=units.filter(u=>u.status==="maintenance").length;
+  const availUnits=units.filter(u=>u.status==="available").length;
+
+  const upcoming=[...projects].filter(p=>p.status!=="completed"&&p.status!=="cancelled")
+    .sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,6);
+
+  const overdue=quotes.filter(q=>(q.status==="out"||q.status==="partially_returned")&&q.endDate<today);
+  const dueSoon=quotes.filter(q=>(q.status==="out"||q.status==="partially_returned")&&q.endDate>=today&&q.endDate<=new Date(Date.now()+2*86400000).toISOString().split("T")[0]);
+  const openFaults=faultReports.filter(f=>f.status==="open"||f.status==="acknowledged").length;
+  const activeQuotes=quotes.filter(q=>q.status==="out"||q.status==="partially_returned");
+
+  const maintDetail=units.filter(u=>u.status==="maintenance").map(u=>{
+    const type=equipTypes.find(t=>t.id===u.typeId);
+    const fault=faultReports.find(f=>f.unitId===u.id);
+    return{...u,typeName:type?.name||"Unknown",faultNote:fault?.notes||""};
+  });
+
+  const ST_C={planning:"#6b7280",confirmed:"#3b82f6",active:"#10b981",completed:"#4b5563",cancelled:"#ef4444"};
+  const timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const dateStr=now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+  const SC=({label,value,sub,color})=>(
+    <div style={{flex:1,minWidth:150,background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:"20px 24px"}}>
+      <div style={{color:"#6b7280",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>{label}</div>
+      <div style={{fontSize:44,fontWeight:900,color,fontFamily:"monospace",lineHeight:1}}>{value}</div>
+      <div style={{color:"#4b5563",fontSize:13,marginTop:6}}>{sub}</div>
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:"100vh",background:"#0d1117",fontFamily:"'DM Sans',sans-serif",color:"#e5e7eb",padding:"24px 32px",boxSizing:"border-box"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:10,height:10,borderRadius:"50%",background:"#10b981",boxShadow:"0 0 8px #10b981"}}/>
+            <h1 style={{color:"#fff",fontSize:26,fontWeight:900,margin:0}}>Operations Overview</h1>
+            <div style={{background:"#ff8c0022",border:"1px solid #ff8c0044",borderRadius:8,padding:"3px 12px",fontSize:12,color:"#ff8c00",fontWeight:700}}>WAREHOUSE DISPLAY</div>
+          </div>
+          <div style={{color:"#6b7280",fontSize:13,marginTop:4,marginLeft:24}}>Eventech Warehouse Management · Live View</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{color:"#fff",fontSize:34,fontWeight:900,fontFamily:"monospace",letterSpacing:2,lineHeight:1}}>{timeStr}</div>
+          <div style={{color:"#9ca3af",fontSize:13,fontWeight:600,marginTop:4}}>{dateStr}</div>
+        </div>
+      </div>
+
+      {/* Alert Banners */}
+      {overdue.length>0&&(
+        <div style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{color:"#ef4444",fontWeight:800,fontSize:15}}>🚨 {overdue.length} Overdue Quote{overdue.length!==1?"s":""}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{overdue.map(q=>q.id).join(", ")} — equipment not returned</div></div>
+          <Badge label="Action Required" color="#ef4444"/>
+        </div>
+      )}
+      {dueSoon.length>0&&(
+        <div style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{color:"#f59e0b",fontWeight:700,fontSize:14}}>⚠️ {dueSoon.length} Quote{dueSoon.length!==1?"s":""} Due in 48 Hours</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{dueSoon.map(q=>`${q.id} (${q.endDate})`).join(", ")}</div></div>
+          <Badge label="Due Soon" color="#f59e0b"/>
+        </div>
+      )}
+      {openFaults>0&&(
+        <div style={{background:"#1a0808",border:"1px solid #ef444433",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{color:"#ef4444",fontWeight:700,fontSize:14}}>🔧 {openFaults} Open Fault Report{openFaults!==1?"s":""}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>Requires warehouse attention</div></div>
+          <Badge label="Needs Attention" color="#ef4444"/>
+        </div>
+      )}
+
+      {/* Stat Cards */}
+      <div style={{display:"flex",gap:14,marginBottom:18,flexWrap:"wrap"}}>
+        <SC label="Total Assets"  value={totalUnits} sub="individual units tracked" color="#ff8c00"/>
+        <SC label="Available"     value={availUnits} sub="ready in warehouse"       color="#10b981"/>
+        <SC label="Out on Hire"   value={outUnits}   sub="currently with clients"   color="#f59e0b"/>
+        <SC label="Maintenance"   value={maintUnits} sub="flagged for service"      color="#ef4444"/>
+      </div>
+
+      {/* Main Grid */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+        {/* Upcoming Projects */}
+        <div style={{background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:20}}>
+          <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Upcoming Projects</div>
+          {upcoming.length===0&&<div style={{color:"#4b5563",fontSize:13}}>No upcoming projects</div>}
+          {upcoming.map(p=>(
+            <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid #1f2937"}}>
+              <div><div style={{color:"#e5e7eb",fontWeight:600,fontSize:14}}>{p.name}</div><div style={{color:"#6b7280",fontSize:12}}>{p.venue||"—"}</div></div>
+              <div style={{textAlign:"right"}}><Badge label={p.status} color={ST_C[p.status]||"#6b7280"}/><div style={{color:"#4b5563",fontSize:11,marginTop:4}}>{p.startDate}</div></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Active Hires */}
+        <div style={{background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:20}}>
+          <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Active Hires ({activeQuotes.length})</div>
+          {activeQuotes.length===0&&<div style={{color:"#4b5563",fontSize:13}}>No active hires</div>}
+          <div style={{maxHeight:340,overflowY:"auto"}}>
+            {activeQuotes.map(q=>{
+              const isOverdue=q.endDate<today;
+              return(
+                <div key={q.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #1f2937"}}>
+                  <div><div style={{color:isOverdue?"#ef4444":"#e5e7eb",fontWeight:700,fontSize:13,fontFamily:"monospace"}}>{q.id}</div><div style={{color:"#6b7280",fontSize:12}}>{q.client}</div></div>
+                  <div style={{textAlign:"right"}}><Badge label={q.status} color={isOverdue?"#ef4444":"#f59e0b"}/><div style={{color:isOverdue?"#ef444488":"#4b5563",fontSize:11,marginTop:3}}>due {q.endDate}</div></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Maintenance */}
+        <div style={{background:"#161b27",border:`1px solid ${maintDetail.length>0?"#ef444433":"#2a2a3a"}`,borderRadius:14,padding:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase"}}>🔧 Under Maintenance</div>
+            <span style={{background:maintDetail.length>0?"#ef444422":"#1f293766",color:maintDetail.length>0?"#ef4444":"#4b5563",border:`1px solid ${maintDetail.length>0?"#ef444444":"#374151"}`,borderRadius:20,padding:"2px 10px",fontSize:12,fontWeight:700}}>{maintDetail.length}</span>
+          </div>
+          {maintDetail.length===0&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 0",gap:8}}><div style={{fontSize:28}}>✅</div><div style={{color:"#10b981",fontSize:13,fontWeight:600}}>All clear — no units in maintenance</div></div>}
+          <div style={{maxHeight:340,overflowY:"auto"}}>
+            {maintDetail.map(u=>(
+              <div key={u.id} style={{padding:"10px 0",borderBottom:"1px solid #1f2937"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{color:"#e5e7eb",fontWeight:600,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{u.typeName}</div>
+                    <div style={{color:"#6b7280",fontSize:12,marginTop:2,fontFamily:"monospace"}}>{u.assetNo||u.id}</div>
+                    {u.faultNote&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3,fontStyle:"italic"}}>"{u.faultNote}"</div>}
+                  </div>
+                  <Badge label="maintenance" color="#ef4444"/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{marginTop:14,display:"flex",justifyContent:"center",alignItems:"center",gap:8}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"#10b981"}}/>
+        <div style={{color:"#374151",fontSize:12}}>Live data from localStorage · Updates with every app change</div>
+      </div>
+    </div>
+  );
+}
+
+// ── REPORTS PAGE ──────────────────────────────────────────────────────────────
+function ReportsPage({units,equipTypes,cableStock,quotes,faultReports,stockTakes,user}){
+  const [activeReport,setActiveReport]=useState(null);
+
+  const REPORTS=[
+    {id:"rental",      icon:"📦", title:"Rental / Booking Counts",   desc:"How many times each asset has been hired out. Filter by count, category and date range."},
+    {id:"faults",      icon:"🚨", title:"Fault Report Summary",       desc:"All logged faults with status, repair history and recurring issues."},
+    {id:"stocktake",   icon:"📊", title:"Stock Take History",         desc:"Previous stock takes, missing items and discrepancies."},
+    {id:"availability",icon:"✅", title:"Current Availability",       desc:"What is in warehouse, out on hire, or in maintenance right now."},
+    {id:"overdue",     icon:"⏰", title:"Overdue Returns",            desc:"Equipment past its return date still showing as out."},
+    {id:"service",     icon:"🔧", title:"Service Due",                desc:"Assets overdue or due soon for service based on booking count."},
+    {id:"cables",      icon:"🔌", title:"Cable Stock Levels",         desc:"Current cable quantities, what is low or depleted."},
+    {id:"custom",      icon:"⚙️", title:"Custom Report",             desc:"Build your own report — pick category, date range, status and fields."},
+  ];
+
+  if(activeReport) return(
+    <ReportDetail report={activeReport} units={units} equipTypes={equipTypes}
+      cableStock={cableStock} quotes={quotes} faultReports={faultReports}
+      stockTakes={stockTakes} onBack={()=>setActiveReport(null)}/>
+  );
+
+  return(
+    <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
+      <div style={{marginBottom:20}}>
+        <h1 style={{color:"#fff",fontSize:22,fontWeight:900,margin:0}}>Reports</h1>
+        <div style={{color:"#6b7280",fontSize:13,marginTop:3}}>Generate, filter and print reports across all warehouse data.</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+        {REPORTS.map(r=>(
+          <Card key={r.id} style={{cursor:"pointer",border:"1px solid #2a2a3a",transition:"border .15s"}}
+            onClick={()=>setActiveReport(r)}>
+            <div style={{fontSize:28,marginBottom:10}}>{r.icon}</div>
+            <div style={{color:"#fff",fontWeight:700,fontSize:15,marginBottom:6}}>{r.title}</div>
+            <div style={{color:"#6b7280",fontSize:13,marginBottom:14}}>{r.desc}</div>
+            <Btn small outline color="#ff8c00">Open Report →</Btn>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportDetail({report,units,equipTypes,cableStock,quotes,faultReports,stockTakes,onBack}){
+  const today=new Date().toISOString().split("T")[0];
+  const [dateFrom,setDateFrom]=useState("");
+  const [dateTo,setDateTo]=useState(today);
+  const [catFilter,setCatFilter]=useState("All");
+  const [statusFilter,setStatusFilter]=useState("All");
+  const [minCount,setMinCount]=useState(0);
+  const [showZero,setShowZero]=useState(false);
+  const [customFields,setCustomFields]=useState(["name","category","serial","status","bookingCount"]);
+  const ALL_CATS=["All","Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase"];
+  const ALL_FIELDS=["name","category","serial","barcode","status","bookingCount","lastCondition","serviceInterval"];
+
+  // ── RENTAL REPORT ────────────────────────────────────────────────────────────
+  const rentalData=(()=>{
+    let data=units.map(u=>{
+      const type=equipTypes.find(t=>t.id===u.typeId);
+      const history=(u.bookingHistory||[]).filter(h=>{
+        if(dateFrom&&h.checkedOutAt<dateFrom) return false;
+        if(dateTo&&h.checkedOutAt>dateTo+"T23:59:59") return false;
+        return true;
+      });
+      return{id:u.id,name:type?.name||"Unknown",category:type?.category||"",serial:u.serial,barcode:u.barcode,count:history.length,total:u.bookingCount,status:u.status};
+    });
+    if(catFilter!=="All") data=data.filter(d=>d.category===catFilter);
+    if(!showZero) data=data.filter(d=>d.count>0);
+    if(minCount>0) data=data.filter(d=>d.count>=minCount);
+    return data.sort((a,b)=>b.count-a.count);
+  })();
+
+  // ── FAULT REPORT ─────────────────────────────────────────────────────────────
+  const faultData=(()=>{
+    let data=[...faultReports];
+    if(statusFilter!=="All") data=data.filter(f=>f.status===statusFilter);
+    if(dateFrom) data=data.filter(f=>f.loggedAt>=dateFrom);
+    if(dateTo)   data=data.filter(f=>f.loggedAt<=dateTo+"T23:59:59");
+    // Add recurring flag
+    const unitCounts={};
+    faultReports.forEach(f=>{ if(f.unitId) unitCounts[f.unitId]=(unitCounts[f.unitId]||0)+1; });
+    return data.map(f=>({...f,recurringCount:unitCounts[f.unitId]||0})).sort((a,b)=>new Date(b.loggedAt)-new Date(a.loggedAt));
+  })();
+
+  // ── AVAILABILITY REPORT ───────────────────────────────────────────────────────
+  const availData=(()=>{
+    const cats=catFilter==="All"?[...new Set(units.map(u=>equipTypes.find(t=>t.id===u.typeId)?.category||""))]:[ catFilter];
+    return cats.filter(Boolean).map(cat=>{
+      const catUnits=units.filter(u=>equipTypes.find(t=>t.id===u.typeId)?.category===cat);
+      return{cat,total:catUnits.length,available:catUnits.filter(u=>u.status==="available").length,out:catUnits.filter(u=>u.status==="out").length,maintenance:catUnits.filter(u=>u.status==="maintenance").length};
+    }).filter(d=>d.total>0);
+  })();
+
+  // ── OVERDUE REPORT ────────────────────────────────────────────────────────────
+  const overdueData=quotes.filter(q=>(q.status==="out"||q.status==="partially_returned")&&q.endDate<today)
+    .sort((a,b)=>new Date(a.endDate)-new Date(b.endDate));
+
+  // ── SERVICE DUE REPORT ────────────────────────────────────────────────────────
+  const serviceData=(()=>{
+    return units.map(u=>{
+      const type=equipTypes.find(t=>t.id===u.typeId);
+      const interval=u.serviceInterval||50;
+      const bookingsSince=u.bookingCount-(u.lastServicedAt||0);
+      const pct=Math.min(100,Math.round(bookingsSince/interval*100));
+      const status=bookingsSince>=interval?"overdue":bookingsSince>=interval*0.8?"due-soon":"ok";
+      return{...u,typeName:type?.name,category:type?.category,interval,bookingsSince,pct,serviceStatus:status};
+    }).filter(u=>u.serviceStatus!=="ok"&&(catFilter==="All"||u.category===catFilter))
+      .sort((a,b)=>b.pct-a.pct);
+  })();
+
+  // ── CABLE STOCK REPORT ────────────────────────────────────────────────────────
+  const cableData=(()=>{
+    return cableStock.map(c=>{
+      const type=equipTypes.find(t=>t.id===c.typeId);
+      const pct=c.qty>0?Math.round(c.available/c.qty*100):0;
+      return{...c,name:type?.name||c.notes,category:type?.category,pct,depleted:c.available===0,low:pct<25&&c.available>0};
+    }).filter(c=>statusFilter==="All"||(statusFilter==="depleted"&&c.depleted)||(statusFilter==="low"&&c.low)||(statusFilter==="ok"&&!c.depleted&&!c.low))
+      .sort((a,b)=>a.pct-b.pct);
+  })();
+
+  const printReport=()=>{
+    const win=window.open("","_blank");
+    const title=report.title;
+    const date=new Date().toLocaleDateString("en-ZA");
+    let body="";
+
+    if(report.id==="rental"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#ff8c00;color:#fff"><th>Asset Name</th><th>Category</th><th>Serial</th><th>Bookings (filtered)</th><th>Total Bookings</th><th>Status</th></tr>
+        ${rentalData.map(d=>`<tr><td>${d.name}</td><td>${d.category}</td><td style="font-family:monospace">${d.serial}</td><td style="text-align:center;font-weight:700">${d.count}</td><td style="text-align:center">${d.total}</td><td>${d.status}</td></tr>`).join("")}
+        <tr style="background:#f5f5f5;font-weight:700"><td colspan="3">TOTAL</td><td style="text-align:center">${rentalData.reduce((s,d)=>s+d.count,0)}</td><td></td><td></td></tr>
+      </table>`;
+    } else if(report.id==="faults"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#ef4444;color:#fff"><th>Asset</th><th>Location</th><th>Status</th><th>Logged By</th><th>Date</th><th>Recurring</th></tr>
+        ${faultData.map(f=>`<tr><td>${f.assetName||"Unknown"}</td><td>${f.location||""}</td><td>${f.status}</td><td>${f.loggedBy}</td><td>${f.loggedAt?new Date(f.loggedAt).toLocaleDateString("en-ZA"):""}</td><td style="text-align:center;color:${f.recurringCount>1?"red":"green"}">${f.recurringCount>1?"⚠️ "+f.recurringCount+"x":"✓"}</td></tr>`).join("")}
+      </table>`;
+    } else if(report.id==="availability"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#10b981;color:#fff"><th>Category</th><th>Total</th><th>Available</th><th>Out on Hire</th><th>Maintenance</th><th>Availability %</th></tr>
+        ${availData.map(d=>`<tr><td><strong>${d.cat}</strong></td><td>${d.total}</td><td style="color:green">${d.available}</td><td style="color:orange">${d.out}</td><td style="color:red">${d.maintenance}</td><td>${Math.round(d.available/d.total*100)}%</td></tr>`).join("")}
+      </table>`;
+    } else if(report.id==="overdue"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#ef4444;color:#fff"><th>QB Ref</th><th>Client</th><th>Due Date</th><th>Days Overdue</th><th>Items</th></tr>
+        ${overdueData.map(q=>{const days=Math.floor((new Date()-new Date(q.endDate))/86400000);return`<tr><td style="font-family:monospace;font-weight:700">${q.id}</td><td>${q.client}</td><td>${q.endDate}</td><td style="color:red;font-weight:700">${days} days</td><td>${q.lines?.length||0}</td></tr>`;}).join("")}
+      </table>`;
+    } else if(report.id==="service"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#8b5cf6;color:#fff"><th>Asset</th><th>Category</th><th>Serial</th><th>Bookings Since Service</th><th>Interval</th><th>Status</th></tr>
+        ${serviceData.map(d=>`<tr><td>${d.typeName}</td><td>${d.category}</td><td style="font-family:monospace">${d.serial}</td><td style="text-align:center">${d.bookingsSince}</td><td style="text-align:center">${d.interval}</td><td style="color:${d.serviceStatus==="overdue"?"red":"orange"};font-weight:700">${d.serviceStatus==="overdue"?"OVERDUE":"DUE SOON"}</td></tr>`).join("")}
+      </table>`;
+    } else if(report.id==="cables"){
+      body=`<table border="1" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px">
+        <tr style="background:#64748b;color:#fff"><th>Cable Type</th><th>Total Qty</th><th>Available</th><th>Out</th><th>Stock Level</th></tr>
+        ${cableData.map(c=>`<tr><td>${c.name}</td><td>${c.qty}</td><td style="color:${c.depleted?"red":c.low?"orange":"green"};font-weight:700">${c.available}</td><td>${c.qty-c.available}</td><td>${c.pct}%</td></tr>`).join("")}
+      </table>`;
+    }
+
+    win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
+      <style>body{font-family:Arial,sans-serif;padding:24px}@media print{.noprint{display:none}}</style></head><body>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div><h1 style="margin:0;color:#ff8c00">⚡ EVENTECH</h1><h2 style="margin:4px 0 0">${title}</h2><p style="color:#666;font-size:12px;margin:4px 0">Generated: ${date}</p></div>
+        <button class="noprint" onclick="window.print()" style="padding:8px 16px;background:#ff8c00;color:#fff;border:none;border-radius:8px;cursor:pointer">🖨️ Print / Save PDF</button>
+      </div><hr/>${body}</body></html>`);
+    win.document.close();
+  };
+
+  const STATUS_C={open:"#ef4444",acknowledged:"#f59e0b","in-repair":"#8b5cf6",resolved:"#10b981"};
+
+  return(
+    <div style={{padding:28,fontFamily:"'DM Sans',sans-serif"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={onBack} style={{background:"#1f2937",border:"none",color:"#9ca3af",borderRadius:8,padding:"8px 14px",cursor:"pointer",fontSize:13}}>← Back</button>
+          <div>
+            <h1 style={{color:"#fff",fontSize:20,fontWeight:900,margin:0}}>{report.icon} {report.title}</h1>
+            <div style={{color:"#6b7280",fontSize:13,marginTop:2}}>{report.desc}</div>
+          </div>
+        </div>
+        <Btn onClick={printReport} color="#ff8c00">🖨️ Print / Export PDF</Btn>
+      </div>
+
+      {/* Filters */}
+      <Card style={{marginBottom:18,padding:14}}>
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"flex-end"}}>
+          {["rental","faults","availability","service","custom"].includes(report.id)&&(
+            <div><Lbl>Category</Lbl>
+              <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}>
+                {ALL_CATS.map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+          {["rental","faults"].includes(report.id)&&(<>
+            <div><Lbl>From Date</Lbl><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}/></div>
+            <div><Lbl>To Date</Lbl><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}/></div>
+          </>)}
+          {report.id==="rental"&&(<>
+            <div><Lbl>Min Bookings</Lbl><input type="number" min={0} value={minCount} onChange={e=>setMinCount(+e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none",width:80}}/></div>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:2}}><input type="checkbox" checked={showZero} onChange={e=>setShowZero(e.target.checked)} style={{accentColor:"#ff8c00"}}/><span style={{color:"#9ca3af",fontSize:13}}>Include zero counts</span></label>
+          </>)}
+          {report.id==="faults"&&(
+            <div><Lbl>Status</Lbl>
+              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}>
+                {["All","open","acknowledged","in-repair","resolved"].map(s=><option key={s} value={s}>{s==="in-repair"?"In Repair":s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </div>
+          )}
+          {report.id==="cables"&&(
+            <div><Lbl>Stock Level</Lbl>
+              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{padding:"7px 10px",background:"#0d1117",border:"1px solid #2a2a3a",borderRadius:8,color:"#fff",fontSize:13,outline:"none"}}>
+                {["All","depleted","low","ok"].map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ── RENTAL REPORT ── */}
+      {report.id==="rental"&&(
+        <div>
+          <div style={{display:"flex",gap:14,marginBottom:14,flexWrap:"wrap"}}>
+            {[["Total Assets",rentalData.length,"#9ca3af"],["Total Bookings",rentalData.reduce((s,d)=>s+d.count,0),"#ff8c00"],["Most Hired",rentalData[0]?.name||"—","#10b981"]].map(([k,v,c])=>(
+              <div key={k} style={{background:"#0d1117",borderRadius:10,padding:"12px 18px",border:"1px solid #2a2a3a",flex:1,minWidth:140}}>
+                <div style={{color:"#6b7280",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>{k}</div>
+                <div style={{color:c,fontWeight:800,fontSize:18,fontFamily:"monospace"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{borderBottom:"2px solid #2a2a3a"}}>
+                {["Asset","Category","Serial","Bookings","Total","Status"].map(h=><th key={h} style={{color:"#6b7280",textAlign:"left",padding:"8px 12px",fontWeight:700,fontSize:11,textTransform:"uppercase"}}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {rentalData.map((d,i)=>(
+                  <tr key={d.id} style={{borderBottom:"1px solid #1f2937",background:i%2===0?"transparent":"#0d111766"}}>
+                    <td style={{color:"#e5e7eb",padding:"8px 12px",fontWeight:600}}>{d.name}</td>
+                    <td style={{padding:"8px 12px"}}><Badge label={d.category} color={CAT_COLORS[d.category]||"#6b7280"}/></td>
+                    <td style={{color:"#9ca3af",padding:"8px 12px",fontFamily:"monospace",fontSize:12}}>{d.serial}</td>
+                    <td style={{color:"#ff8c00",padding:"8px 12px",fontWeight:800,fontFamily:"monospace",fontSize:16}}>{d.count}</td>
+                    <td style={{color:"#4b5563",padding:"8px 12px",fontFamily:"monospace"}}>{d.total}</td>
+                    <td style={{padding:"8px 12px"}}><Badge label={d.status} color={d.status==="available"?"#10b981":d.status==="out"?"#f59e0b":"#ef4444"}/></td>
+                  </tr>
+                ))}
+                {rentalData.length===0&&<tr><td colSpan={6} style={{color:"#4b5563",textAlign:"center",padding:30}}>No data matches your filters.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── FAULT REPORT ── */}
+      {report.id==="faults"&&(
+        <div>
+          <div style={{display:"flex",gap:14,marginBottom:14,flexWrap:"wrap"}}>
+            {[["Total",faultData.length,"#9ca3af"],["Open",faultData.filter(f=>f.status==="open").length,"#ef4444"],["Resolved",faultData.filter(f=>f.status==="resolved").length,"#10b981"],["Recurring",faultData.filter(f=>f.recurringCount>1).length,"#f59e0b"]].map(([k,v,c])=>(
+              <div key={k} style={{background:"#0d1117",borderRadius:10,padding:"12px 18px",border:"1px solid #2a2a3a",flex:1,minWidth:120}}>
+                <div style={{color:"#6b7280",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>{k}</div>
+                <div style={{color:c,fontWeight:800,fontSize:22,fontFamily:"monospace"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {faultData.map(f=>(
+              <Card key={f.id} style={{borderLeft:`4px solid ${STATUS_C[f.status]||"#2a2a3a"}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                  <div>
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                      <span style={{color:"#fff",fontWeight:700}}>{f.assetName||"Unknown"}</span>
+                      <Badge label={f.status==="in-repair"?"In Repair":f.status} color={STATUS_C[f.status]||"#6b7280"}/>
+                      {f.recurringCount>1&&<span style={{color:"#f59e0b",fontSize:11,fontWeight:700,background:"#1a1200",padding:"2px 8px",borderRadius:6}}>⚠️ {f.recurringCount}x recurring</span>}
+                    </div>
+                    <div style={{color:"#6b7280",fontSize:12}}>📍 {f.location} · Logged by <strong style={{color:"#ff8c00"}}>{f.loggedBy}</strong> · {f.loggedAt?new Date(f.loggedAt).toLocaleDateString("en-ZA"):""}</div>
+                    {f.notes&&<div style={{color:"#9ca3af",fontSize:12,marginTop:4,fontStyle:"italic"}}>{f.notes}</div>}
+                    {(f.repairHistory||[]).length>0&&<div style={{color:"#8b5cf6",fontSize:11,marginTop:4}}>🔧 {f.repairHistory.length} repair note{f.repairHistory.length!==1?"s":""}</div>}
+                  </div>
+                </div>
+              </Card>
+            ))}
+            {faultData.length===0&&<div style={{color:"#4b5563",textAlign:"center",padding:30}}>No faults match your filters.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ── AVAILABILITY REPORT ── */}
+      {report.id==="availability"&&(
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+            {availData.map(d=>{
+              const availPct=Math.round(d.available/d.total*100);
+              return(
+                <Card key={d.cat}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{color:"#fff",fontWeight:700,fontSize:15}}>{d.cat}</div>
+                    <Badge label={`${availPct}% available`} color={availPct>70?"#10b981":availPct>40?"#f59e0b":"#ef4444"}/>
+                  </div>
+                  <div style={{background:"#0d1117",borderRadius:8,overflow:"hidden",marginBottom:10,height:8}}>
+                    <div style={{width:`${availPct}%`,height:"100%",background:availPct>70?"#10b981":availPct>40?"#f59e0b":"#ef4444",transition:"width .3s"}}/>
+                  </div>
+                  <div style={{display:"flex",gap:16}}>
+                    <div><span style={{color:"#6b7280",fontSize:12}}>Total: </span><span style={{color:"#e5e7eb",fontWeight:700}}>{d.total}</span></div>
+                    <div><span style={{color:"#6b7280",fontSize:12}}>Available: </span><span style={{color:"#10b981",fontWeight:700}}>{d.available}</span></div>
+                    <div><span style={{color:"#6b7280",fontSize:12}}>Out: </span><span style={{color:"#f59e0b",fontWeight:700}}>{d.out}</span></div>
+                    {d.maintenance>0&&<div><span style={{color:"#6b7280",fontSize:12}}>Maint: </span><span style={{color:"#ef4444",fontWeight:700}}>{d.maintenance}</span></div>}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── OVERDUE REPORT ── */}
+      {report.id==="overdue"&&(
+        <div>
+          {overdueData.length===0?<div style={{color:"#10b981",textAlign:"center",padding:40,fontSize:16,fontWeight:700}}>✅ No overdue returns — all clear!</div>:(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {overdueData.map(q=>{
+                const days=Math.floor((new Date()-new Date(q.endDate))/86400000);
+                return(
+                  <Card key={q.id} style={{borderLeft:"4px solid #ef4444"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                      <div>
+                        <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:4}}>
+                          <span style={{color:"#ff8c00",fontFamily:"monospace",fontWeight:800,fontSize:15}}>{q.id}</span>
+                          <span style={{color:"#ef4444",fontWeight:700,fontSize:13}}>⏰ {days} day{days!==1?"s":""} overdue</span>
+                        </div>
+                        <div style={{color:"#e5e7eb",fontWeight:600}}>{q.client}</div>
+                        <div style={{color:"#6b7280",fontSize:12,marginTop:2}}>Due: {q.endDate} · {q.lines?.length||0} items · Driver: {q.driver||"—"}</div>
+                      </div>
+                      <Badge label={`${days}d overdue`} color="#ef4444"/>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── SERVICE DUE REPORT ── */}
+      {report.id==="service"&&(
+        <div>
+          {serviceData.length===0?<div style={{color:"#10b981",textAlign:"center",padding:40,fontSize:16,fontWeight:700}}>✅ All assets are within service intervals!</div>:(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{borderBottom:"2px solid #2a2a3a"}}>
+                {["Asset","Category","Serial","Bookings Since","Interval","Progress","Status"].map(h=><th key={h} style={{color:"#6b7280",textAlign:"left",padding:"8px 12px",fontWeight:700,fontSize:11,textTransform:"uppercase"}}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {serviceData.map((d,i)=>(
+                  <tr key={d.id} style={{borderBottom:"1px solid #1f2937"}}>
+                    <td style={{color:"#e5e7eb",padding:"8px 12px",fontWeight:600}}>{d.typeName}</td>
+                    <td style={{padding:"8px 12px"}}><Badge label={d.category} color={CAT_COLORS[d.category]||"#6b7280"}/></td>
+                    <td style={{color:"#9ca3af",padding:"8px 12px",fontFamily:"monospace",fontSize:12}}>{d.serial}</td>
+                    <td style={{color:"#ff8c00",padding:"8px 12px",fontWeight:700}}>{d.bookingsSince}</td>
+                    <td style={{color:"#4b5563",padding:"8px 12px"}}>{d.interval}</td>
+                    <td style={{padding:"8px 12px",minWidth:100}}>
+                      <div style={{background:"#1f2937",borderRadius:4,height:8,overflow:"hidden"}}>
+                        <div style={{width:`${Math.min(100,d.pct)}%`,height:"100%",background:d.serviceStatus==="overdue"?"#ef4444":"#f59e0b"}}/>
+                      </div>
+                      <div style={{color:"#6b7280",fontSize:10,marginTop:2}}>{d.pct}%</div>
+                    </td>
+                    <td style={{padding:"8px 12px"}}><Badge label={d.serviceStatus==="overdue"?"Overdue":"Due Soon"} color={d.serviceStatus==="overdue"?"#ef4444":"#f59e0b"}/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── CABLE STOCK REPORT ── */}
+      {report.id==="cables"&&(
+        <div>
+          <div style={{display:"flex",gap:14,marginBottom:14,flexWrap:"wrap"}}>
+            {[["Total Types",cableData.length,"#9ca3af"],["Depleted",cableData.filter(c=>c.depleted).length,"#ef4444"],["Low Stock",cableData.filter(c=>c.low).length,"#f59e0b"],["OK",cableData.filter(c=>!c.depleted&&!c.low).length,"#10b981"]].map(([k,v,c])=>(
+              <div key={k} style={{background:"#0d1117",borderRadius:10,padding:"12px 18px",border:"1px solid #2a2a3a",flex:1,minWidth:120}}>
+                <div style={{color:"#6b7280",fontSize:11,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>{k}</div>
+                <div style={{color:c,fontWeight:800,fontSize:22,fontFamily:"monospace"}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr style={{borderBottom:"2px solid #2a2a3a"}}>
+              {["Cable Type","Category","Total","Available","Out","Level"].map(h=><th key={h} style={{color:"#6b7280",textAlign:"left",padding:"8px 12px",fontWeight:700,fontSize:11,textTransform:"uppercase"}}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {cableData.map((c,i)=>(
+                <tr key={c.id} style={{borderBottom:"1px solid #1f2937"}}>
+                  <td style={{color:"#e5e7eb",padding:"8px 12px",fontWeight:600}}>{c.name}</td>
+                  <td style={{padding:"8px 12px"}}><Badge label={c.category||"Cables"} color={CAT_COLORS[c.category||"Cables"]||"#6b7280"}/></td>
+                  <td style={{color:"#9ca3af",padding:"8px 12px",fontFamily:"monospace"}}>{c.qty}</td>
+                  <td style={{color:c.depleted?"#ef4444":c.low?"#f59e0b":"#10b981",padding:"8px 12px",fontWeight:700,fontFamily:"monospace"}}>{c.available}</td>
+                  <td style={{color:"#f59e0b",padding:"8px 12px",fontFamily:"monospace"}}>{c.qty-c.available}</td>
+                  <td style={{padding:"8px 12px",minWidth:120}}>
+                    <div style={{background:"#1f2937",borderRadius:4,height:8,overflow:"hidden",marginBottom:2}}>
+                      <div style={{width:`${c.pct}%`,height:"100%",background:c.depleted?"#ef4444":c.low?"#f59e0b":"#10b981"}}/>
+                    </div>
+                    <div style={{color:"#6b7280",fontSize:10}}>{c.pct}%{c.depleted?" — DEPLETED":c.low?" — LOW":""}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── STOCK TAKE HISTORY ── */}
+      {report.id==="stocktake"&&(
+        <div>
+          {stockTakes.length===0?<div style={{color:"#4b5563",textAlign:"center",padding:40}}>No stock takes completed yet.</div>:(
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {[...stockTakes].reverse().map(st=>(
+                <Card key={st.id} style={{borderLeft:`4px solid ${(st.missingUnits||[]).length>0?"#ef4444":"#10b981"}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+                    <div>
+                      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:6}}>
+                        <span style={{color:"#ff8c00",fontFamily:"monospace",fontWeight:800}}>{st.id}</span>
+                        <Badge label={(st.missingUnits||[]).length>0?"Missing Items":"All Clear"} color={(st.missingUnits||[]).length>0?"#ef4444":"#10b981"}/>
+                      </div>
+                      <div style={{color:"#6b7280",fontSize:12}}>Submitted by {st.submittedBy} · {st.submittedAt?new Date(st.submittedAt).toLocaleDateString("en-ZA"):""}</div>
+                      <div style={{display:"flex",gap:16,marginTop:6}}>
+                        <span style={{color:"#6b7280",fontSize:12}}>Expected: <strong style={{color:"#e5e7eb"}}>{st.totalExpected}</strong></span>
+                        <span style={{color:"#6b7280",fontSize:12}}>Scanned: <strong style={{color:"#10b981"}}>{st.totalScanned}</strong></span>
+                        <span style={{color:"#6b7280",fontSize:12}}>Missing: <strong style={{color:(st.missingUnits||[]).length>0?"#ef4444":"#10b981"}}>{(st.missingUnits||[]).length}</strong></span>
+                        {(st.totalManual||0)>0&&<span style={{color:"#6b7280",fontSize:12}}>Manual: <strong style={{color:"#f59e0b"}}>{st.totalManual}</strong></span>}
+                      </div>
+                      {(st.missingUnits||[]).length>0&&(
+                        <div style={{marginTop:8,color:"#ef4444",fontSize:12}}>
+                          Missing: {st.missingUnits.slice(0,3).map(m=>m.serial).join(", ")}{st.missingUnits.length>3?` +${st.missingUnits.length-3} more`:""}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── CUSTOM REPORT ── */}
+      {report.id==="custom"&&(
+        <Card>
+          <div style={{color:"#9ca3af",fontSize:13,marginBottom:16}}>Custom report builder — select fields and filters, then export to PDF.</div>
+          <div style={{marginBottom:14}}>
+            <Lbl>Include Fields</Lbl>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginTop:6}}>
+              {ALL_FIELDS.map(f=>(
+                <label key={f} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",background:"#0d1117",borderRadius:8,padding:"6px 12px",border:`1px solid ${customFields.includes(f)?"#ff8c00":"#2a2a3a"}`}}>
+                  <input type="checkbox" checked={customFields.includes(f)} onChange={e=>setCustomFields(p=>e.target.checked?[...p,f]:p.filter(x=>x!==f))} style={{accentColor:"#ff8c00"}}/>
+                  <span style={{color:customFields.includes(f)?"#ff8c00":"#9ca3af",fontSize:12,textTransform:"capitalize"}}>{f}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead><tr style={{borderBottom:"2px solid #2a2a3a"}}>
+                {customFields.map(f=><th key={f} style={{color:"#6b7280",textAlign:"left",padding:"8px 10px",fontWeight:700,fontSize:11,textTransform:"uppercase"}}>{f}</th>)}
+              </tr></thead>
+              <tbody>
+                {units.filter(u=>catFilter==="All"||equipTypes.find(t=>t.id===u.typeId)?.category===catFilter).slice(0,50).map((u,i)=>{
+                  const type=equipTypes.find(t=>t.id===u.typeId);
+                  const vals={name:type?.name||"",category:type?.category||"",serial:u.serial,barcode:u.barcode,status:u.status,bookingCount:u.bookingCount,lastCondition:u.lastCondition?.condition||"—",serviceInterval:u.serviceInterval||50};
+                  return(<tr key={u.id} style={{borderBottom:"1px solid #1f2937"}}>
+                    {customFields.map(f=><td key={f} style={{color:"#9ca3af",padding:"7px 10px",fontFamily:["serial","barcode"].includes(f)?"monospace":"inherit"}}>{vals[f]}</td>)}
+                  </tr>);
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{marginTop:14}}>
+            <Btn color="#ff8c00" onClick={()=>{
+              const win=window.open("","_blank");
+              const rows=units.filter(u=>catFilter==="All"||equipTypes.find(t=>t.id===u.typeId)?.category===catFilter).map(u=>{
+                const type=equipTypes.find(t=>t.id===u.typeId);
+                const vals={name:type?.name||"",category:type?.category||"",serial:u.serial,barcode:u.barcode,status:u.status,bookingCount:u.bookingCount,lastCondition:u.lastCondition?.condition||"—",serviceInterval:u.serviceInterval||50};
+                return `<tr>${customFields.map(f=>`<td style="padding:6px 10px;border-bottom:1px solid #eee">${vals[f]}</td>`).join("")}</tr>`;
+              }).join("");
+              win.document.write(`<!DOCTYPE html><html><head><title>Custom Report</title><style>body{font-family:sans-serif;padding:20px}table{width:100%;border-collapse:collapse}th{background:#ff8c00;color:#fff;padding:8px 10px;text-align:left}@media print{button{display:none}}</style></head><body><h2>⚡ Eventech — Custom Report</h2><p style="color:#666;font-size:12px">Generated: ${new Date().toLocaleDateString("en-ZA")} · ${units.length} assets</p><br/><table><thead><tr>${customFields.map(f=>`<th>${f}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table><br/><button onclick="window.print()">🖨️ Print</button></body></html>`);
+              win.document.close();
+            }}>🖨️ Export Custom Report</Btn>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 // ── localStorage helpers ─────────────────────────────────────────────────────
 const INIT_CREW_DATA = [
   {id:1,name:"Wynand",  role:"Production Manager",phone:"+27 82 000 0001",email:"wynand@eventech.co.za",  skills:["PM","Lighting","Audio"],    status:"available"},
@@ -3838,7 +4464,7 @@ export default function App(){
       <div style={{flex:1,overflowY:"auto"}}>
         {tab==="dashboard" &&<Dashboard units={units} equipTypes={equipTypes} projects={projects} quotes={quotes} faultReports={faultReports} prepSheets={prepSheets} setTab={setTab} user={user}/>}
         {tab==="calendar"  &&<CalendarPage projects={projects} quotes={quotes} units={units} crew={crew} user={user}/>}
-        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} projects={projects} user={user} faultReports={faultReports} setFaultReports={setFaultReports}/>}
+        {tab==="scanout"  &&<ScanPage  quotes={quotes} setQuotes={setQuotes} units={units} setUnits={setUnits} equipTypes={equipTypes} vehicles={vehicles} setVehicles={setVehicles} crew={crew} user={user}/>}
         {tab==="quotes"   &&<QuotesPage quotes={quotes} setQuotes={setQuotes} units={units} equipTypes={equipTypes} projects={projects} user={user}/>}
         {tab==="assets"   &&<Assets equipTypes={equipTypes} setEquipTypes={setEquipTypes} units={units} setUnits={setUnits} cableStock={cableStock} setCableStock={setCableStock} quotes={quotes} user={user}/>}
         {tab==="faults"   &&<FaultReports faultReports={faultReports} setFaultReports={setFaultReports} units={units} equipTypes={equipTypes} user={user}/>}
@@ -3849,6 +4475,7 @@ export default function App(){
         {tab==="freelancers"&&<FreelancersPage freelancers={freelancers} setFreelancers={setFreelancers} projects={projects} quotes={quotes} user={user}/>}
         {tab==="crew"       &&<Crew crew={crew} setCrew={setCrew} projects={projects} user={user}/>}
         {tab==="prepsheets" &&<PrepSheetsPage prepSheets={prepSheets} setPrepSheets={setPrepSheets} user={user}/>}
+        {tab==="reports"    &&<ReportsPage units={units} equipTypes={equipTypes} quotes={quotes} faultReports={faultReports} stockTakes={stockTakes} cableStock={cableStock} user={user}/>}
       </div>
       {showSettings&&(
         <UserSettingsModal
