@@ -122,17 +122,17 @@ function Login({onLogin}){
 // SIDEBAR
 const NAV=[
   {key:"dashboard",  icon:"▦", label:"Dashboard"},
-  {key:"scanout",    icon:"📷",label:"Scan Out / In"},
-  {key:"quotes",     icon:"📋",label:"Quotes"},
-  {key:"assets",     icon:"🔧",label:"Assets"},
-  {key:"faults",     icon:"🚨",label:"Fault Reports"},
-  {key:"stocktake",  icon:"📊",label:"Stock Take"},
+  {key:"prepsheets", icon:"📄",label:"Prep Sheets"},
   {key:"projects",   icon:"📁",label:"Projects"},
-  {key:"vehicles",   icon:"🚛",label:"Vehicles"},
+  {key:"quotes",     icon:"📋",label:"Quotes"},
+  {key:"scanout",    icon:"📷",label:"Scan Out / In"},
   {key:"dryhire",    icon:"🔄",label:"Dry Hire In"},
+  {key:"assets",     icon:"🔧",label:"Assets"},
+  {key:"stocktake",  icon:"📊",label:"Stock Take"},
+  {key:"faults",     icon:"🚨",label:"Fault Reports"},
+  {key:"vehicles",   icon:"🚛",label:"Vehicles"},
   {key:"freelancers",icon:"🤝",label:"Freelancers"},
   {key:"crew",       icon:"👥",label:"Crew"},
-  {key:"prepsheets", icon:"📄",label:"Prep Sheets"},
   {key:"reports",    icon:"📈",label:"Reports"},
 ];
 function Sidebar({tab,setTab,user,onLogout,onOpenSettings}){
