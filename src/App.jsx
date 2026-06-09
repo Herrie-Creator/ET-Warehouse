@@ -969,9 +969,9 @@ How many are being returned now?`);
               <Btn outline onClick={startCamera} color="#8b5cf6" title="Use phone camera">📷</Btn>
             </div>
             <div style={{color:"#4b5563",fontSize:11,marginBottom:8}}>Or select manually:</div>
-            <Sel label="" value="" onChange={v=>{ if(v) { addUnitToQuote(v); setTimeout(()=>{ const sel=document.querySelector('select[aria-label="Equipment selection"]'); if(sel) sel.value=""; },0); } }}>
-            <option value="">— Select a unit to add —</option>
-            {equipTypes.map(t=>{ const tu=units.filter(u=>u.typeId===t.id&&!activeQ.lines.some(l=>l.unitId===u.id)); if(!tu.length) return null; return tu.map(u=><option key={u.id} value={u.barcode}>{t.name} — {u.serial} ({u.barcode})</option>);
+           <Sel label="" value="" onChange={v=>{ if(v) addUnitToQuote(v); }}>
+  <option value="">— Select a unit to add —</option>
+  {equipTypes.map(t=>{ const tu=units.filter(u=>u.typeId===t.id&&!activeQ.lines.some(l=>l.unitId===u.id)); if(!tu.length) return null; return tu.map(u=><option key={u.id} value={u.barcode}>{t.name} — {u.serial} ({u.barcode})</option>);
             </Sel>
           </div>
           <div style={{marginBottom:16}}>
