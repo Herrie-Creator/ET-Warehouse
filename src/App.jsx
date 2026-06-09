@@ -976,36 +976,23 @@ How many are being returned now?`);
           </div>
           <div style={{marginBottom:16}}>
             <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Equipment on this Quote ({activeQ.lines.length} units)</div>
-          
-            {activeQ && activeQ.lines && activeQ.lines.length > 0 ? (
-  <div style={{ background: "#161b27", border: "1px solid #2a2a3a", borderRadius: 14, padding: 20, marginBottom: 20 }}>
-    <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 700, textTransform: "uppercase", marginBottom: 14 }}>
-      📦 Equipment on this Quote ({activeQ.lines.length})
-    </div>
-    <div style={{ maxHeight: 400, overflowY: "auto" }}>
-      {activeQ.lines.map((line, idx) => {
-        const unit = units.find(u => u.id === line.unitId);
-        const equipType = unit ? equipTypes.find(t => t.id === unit.typeId) : null;
-        return (
-          <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #2a2a3a" }}>
-            <div>
-              <div style={{ color: "#e5e7eb", fontWeight: 600 }}>{equipType?.name || "Unknown Equipment"}</div>
-              <div style={{ color: "#6b7280", fontSize: 12, marginTop: 4, fontFamily: "monospace" }}>{unit?.id} (Serial: {unit?.serial || "—"})</div>
-              <div style={{ color: "#9ca3af", fontSize: 11, marginTop: 2 }}>Status: <span style={{ color: "#10b981", fontWeight: 600 }}>{line.status}</span></div>
-            </div>
-            <button onClick={() => removeLine(line.unitId)} style={{ background: "#ef444422", color: "#ef4444", border: "1px solid #ef4444", borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-              Remove
-            </button>
+           {activeQ.lines.length===0&&<div style={{color:"#4b5563",fontSize:13,textAlign:"center",padding:"20px 0"}}>No units added yet — scan or select above.</div>}
+            {activeQ.lines.map(line=>{ const unit=units.find(u=>u.id===line.unitId); const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
+              return(<div key={line.unitId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0d1117",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #2a2a3a"}}>
+                <div>
+                  <div style={{color:"#fff",fontWeight:700,fontSize:14}}>{type?.name||"Unknown"}</div>
+                  <div style={{color:"#6b7280",fontSize:12,marginTop:3}}>Serial: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{unit?.serial}</span> · Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{unit?.barcode}</span> · <span style={{color:"#ff8c00"}}>Booked {unit?.bookingCount}x</span></div>
+                </div>
+                <button onClick={()=>removeLine(line.unitId)} style={{background:"none",border:"none",color:"#ef4444",fontSize:18,cursor:"pointer"}}>✕</button>
+              </div>);
+            })}
           </div>
-        );
-      })}
-    </div>
-  </div>
-) : activeQ ? (
-  <div style={{ background: "#161b27", border: "1px solid #2a2a3a", borderRadius: 14, padding: 20, marginBottom: 20, textAlign: "center" }}>
-    <div style={{ color: "#4b5563", fontSize: 13 }}>No equipment added yet — scan or manually add items</div>
-  </div>
-) : null}
+          <div style={{display:"flex",gap:10}}>
+            <Btn outline onClick={()=>{setPhase("start");setActiveQ(null);}} color="#6b7280">Cancel</Btn>
+            <Btn disabled={activeQ.lines.length===0} color="#ff8c00" onClick={()=>setConfirm("checkout")}>✓ Finalise Check Out ({activeQ.lines.length} units)</Btn>
+          </div>
+        </div>
+      )}
 
       {activeQ?._mode==="return"&&(
         <div style={{maxWidth:700}}>
