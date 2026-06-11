@@ -1,20 +1,38 @@
-# Eventech Warehouse v4.0
+# Eventech Warehouse Management System v3.1
 
-## Deploy to Vercel
+## Setup
 
-1. Push this folder to GitHub
-2. Import repo on vercel.com → Deploy
-3. Live in ~60 seconds
+```bash
+npm install
+npm run dev       # Development
+npm run build     # Production build
+npm run preview   # Preview production build
+```
 
-## Run locally
-npm install && npm run dev
+## Architecture
 
-## Logins
-wynand@eventech.co.za / wynand123 (Manager)
-herman@eventech.co.za / herman123 (Manager)
-remerus@eventech.co.za / remerus123 (Warehouse)
-liam@eventech.co.za / liam123 (Audio HOD)
-pat@eventech.co.za / pat123 (Lighting HOD)
-paulos@eventech.co.za / paulos123 (Structures HOD)
-kabelo@eventech.co.za / kabelo123 (Power HOD)
-frans@eventech.co.za / frans123 (AV/LED HOD)
+This app runs fully in-browser using React + localStorage persistence. No external database required.
+
+- **Data layer**: `usePersisted()` hook — all state auto-saved to `localStorage` under `et_*` keys
+- **Auth**: Hardcoded user list in `USERS` constant (top of App.jsx) — replace with your server auth when ready
+- **Server migration**: When ready, swap `usePersisted()` calls in `App()` with API calls to your server
+
+## Connecting to your server (future)
+
+In `App.jsx`, the bottom of the file has the `App()` component. Replace `usePersisted(key, fallback)` calls with your own `useServerData(endpoint)` hook that POSTs/GETs from your backend.
+
+## User accounts
+
+Edit the `USERS` array near the top of `src/App.jsx` to update names, emails, passwords, and roles.
+
+## Roles
+
+- `admin` — Full access (managers)
+- `warehouse` — Scan in/out, fault reports, assets
+- `hod_audio / hod_lighting / hod_rigging / hod_power / hod_av` — Scan, fault reports, own department
+- `crew` — Scan out only
+- `freelancer` — Calendar & availability only
+
+## Deployment (Vercel)
+
+Push to GitHub, connect repo to Vercel. The included `vercel.json` handles SPA routing.
