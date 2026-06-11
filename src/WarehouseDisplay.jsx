@@ -39,6 +39,7 @@ export default function WarehouseDisplay() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [hasData, setHasData] = useState(false);
 
   // Tick clock every second
   useEffect(() => {
@@ -53,8 +54,13 @@ export default function WarehouseDisplay() {
       const projects     = read("projects",     []);
       const quotes       = read("quotes",       []);
       const faultReports = read("faultReports", []);
-      setData({ units, equipTypes, projects, quotes, faultReports });
-      setLastUpdated(new Date());
+      
+      // Only update if data actually exists
+      if (units.length > 0 || equipTypes.length > 0 || projects.length > 0 || quotes.length > 0) {
+        setData({ units, equipTypes, projects, quotes, faultReports });
+        setHasData(true);
+        setLastUpdated(new Date());
+      }
       setIsLoading(false);
     } catch (error) {
       console.error("Error loading warehouse data:", error);
@@ -62,25 +68,47 @@ export default function WarehouseDisplay() {
     }
   }
 
+  // Initial load
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000);
+  }, []);
+
+  // Periodic refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for storage changes (updates from main app in another window)
   useEffect(() => {
     const handler = () => loadData();
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  if (isLoading && !lastUpdated) {
+  // Show loading only on initial load without any data
+  if (isLoading && !hasData) {
     return (
       <div style={{ minHeight: "100vh", width: "100%", background: "#0d1117", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ color: "#10b981", fontSize: 28, marginBottom: 12 }}>↻</div>
           <div style={{ color: "#e5e7eb", fontSize: 18, fontWeight: 600 }}>Loading…</div>
           <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>Fetching warehouse data</div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no data even after loading, show error
+  if (!hasData) {
+    return (
+      <div style={{ minHeight: "100vh", width: "100%", background: "#0d1117", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ color: "#ef4444", fontSize: 28, marginBottom: 12 }}>⚠️</div>
+          <div style={{ color: "#e5e7eb", fontSize: 18, fontWeight: 600 }}>No Data Available</div>
+          <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>Waiting for warehouse data from main application</div>
         </div>
       </div>
     );
