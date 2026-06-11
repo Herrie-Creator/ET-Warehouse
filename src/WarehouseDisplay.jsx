@@ -29,7 +29,14 @@ function StatCard({ label, value, sub, color }) {
 }
 
 export default function WarehouseDisplay() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState({
+    units: [],
+    equipTypes: [],
+    projects: [],
+    quotes: [],
+    faultReports: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [now, setNow] = useState(new Date());
 
@@ -40,13 +47,19 @@ export default function WarehouseDisplay() {
   }, []);
 
   function loadData() {
-    const units        = read("units",        []);
-    const equipTypes   = read("equipTypes",   []);
-    const projects     = read("projects",     []);
-    const quotes       = read("quotes",       []);
-    const faultReports = read("faultReports", []);
-    setData({ units, equipTypes, projects, quotes, faultReports });
-    setLastUpdated(new Date());
+    try {
+      const units        = read("units",        []);
+      const equipTypes   = read("equipTypes",   []);
+      const projects     = read("projects",     []);
+      const quotes       = read("quotes",       []);
+      const faultReports = read("faultReports", []);
+      setData({ units, equipTypes, projects, quotes, faultReports });
+      setLastUpdated(new Date());
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error loading warehouse data:", error);
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -61,10 +74,14 @@ export default function WarehouseDisplay() {
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  if (!data) {
+  if (isLoading && !lastUpdated) {
     return (
-      <div style={{ minHeight: "100vh", background: "#0d1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#6b7280", fontSize: 18 }}>Loading…</div>
+      <div style={{ minHeight: "100vh", width: "100%", background: "#0d1117", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ color: "#10b981", fontSize: 28, marginBottom: 12 }}>↻</div>
+          <div style={{ color: "#e5e7eb", fontSize: 18, fontWeight: 600 }}>Loading…</div>
+          <div style={{ color: "#6b7280", fontSize: 12, marginTop: 8 }}>Fetching warehouse data</div>
+        </div>
       </div>
     );
   }
@@ -216,7 +233,7 @@ export default function WarehouseDisplay() {
             <div style={{ color: "#9ca3af", fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>
               🔧 Under Maintenance
             </div>
-            <span style={{ background: maintUnitsDetail.length > 0 ? "#ef444422" : "#1f293766", color: maintUnitsDetail.length > 0 ? "#ef4444" : "#4b5563", border: `1px solid ${maintUnitsDetail.length > 0 ? "#ef444444" : "#374151"}`, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>
+            <span style={{ background: maintUnitsDetail.length > 0 ? "#ef444422" : "#1f293766", color: maintUnitsDetail.length > 0 ? "#ef4444" : "#4b5563", border: `1px solid ${maintUnitsDetail.length > 0 ? "#ef444444" : "#374151"}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 700 }}>
               {maintUnitsDetail.length}
             </span>
           </div>
