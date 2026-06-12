@@ -1399,14 +1399,15 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
     setConfirmDelete(null);
   };
 
+  const triggerImport=()=>{ importRef.current?.click(); };
   const handleImport=(e)=>{
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
     reader.onload=(ev)=>{
       // Ask wipe or add
-      const wipe=window.confirm("⚠️ BULK IMPORT\n\nDo you want to REPLACE all current assets with the imported data?\n\nClick OK to WIPE and replace.\nClick Cancel to ADD to existing stock.");
-      if(wipe&&!window.confirm("Are you absolutely sure? This will DELETE all current equipment types and units and replace them with the imported data. This cannot be undone.")) return;
-      const result=parseCSVImport(ev.target.result,equipTypes,units,setEquipTypes,setUnits,wipe,user.name);
+      const wipe=window.confirm("⚠️ BULK IMPORT\n\nDo you want to REPLACE ALL current assets with the imported data?\n\nClick OK to WIPE and replace everything.\nClick Cancel to ADD the imported items to your existing stock.");
+      if(wipe&&!window.confirm("Are you absolutely sure? This will DELETE all current equipment types and units and replace them with the imported data. This cannot be undone.")) { e.target.value=""; return; }
+      const result=parseCSVImport(ev.target.result,equipTypes,units,setEquipTypes,setUnits,wipe,user.name,setCableStock);
       setImportResult(result); setShowImport(true);
     };
     reader.readAsText(file);
@@ -1423,8 +1424,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
           <Btn outline onClick={()=>setShowQRPrint(true)} color="#8b5cf6">🖨️ Print QR Sheet</Btn>
           {canEdit&&<>
           <input ref={importRef} type="file" accept=".csv,.txt" onChange={handleImport} style={{display:"none"}}/>
-          <Btn outline onClick={()=>triggerImport(false)} color="#3b82f6">⬆ Add CSV</Btn>
-          <Btn outline onClick={()=>{ if(window.confirm("⚠️ WIPE ALL ASSETS and replace with CSV file?\nThis cannot be undone.")) triggerImport(true); }} color="#ef4444">⬆ Replace All</Btn>
+          <Btn outline onClick={triggerImport} color="#3b82f6">⬆ Add CSV</Btn>
         </>}
           {userIsManager(user)&&<Btn onClick={()=>setAddType(true)}>+ Add Type</Btn>}
         </div>
@@ -3497,7 +3497,7 @@ function exportAssetsToCSV(equipTypes, units){
   URL.revokeObjectURL(url);
 }
 
-function parseCSVImport(text, equipTypes, existingUnits, setEquipTypes, setUnits, wipeExisting=false, uploadedBy="Unknown"){
+function parseCSVImport(text, equipTypes, existingUnits, setEquipTypes, setUnits, wipeExisting=false, uploadedBy="Unknown", setCableStock=null){
   const lines=text.trim().split("\n").map(l=>l.split(",").map(v=>v.replace(/^"|"$/g,"").trim()));
   const header=lines[0].map(h=>h.toLowerCase());
   const errors=[]; const added=[]; const duplicates=[];
@@ -3506,7 +3506,7 @@ function parseCSVImport(text, equipTypes, existingUnits, setEquipTypes, setUnits
   const existingBarcodes=new Set(newUnits.map(u=>u.barcode.toUpperCase()));
   const existingSerials=new Set(newUnits.map(u=>u.serial.toUpperCase()));
   try{const log=JSON.parse(localStorage.getItem("et_importLog")||"[]");log.push({uploadedBy,at:new Date().toISOString(),wipe:wipeExisting,count:lines.length-1});localStorage.setItem("et_importLog",JSON.stringify(log.slice(-50)));}catch{}
-  if(wipeExisting){ setEquipTypes([]); setUnits([]); }
+  if(wipeExisting){ setEquipTypes([]); setUnits([]); if(setCableStock) setCableStock([]); }
   // Log the upload
 
 
