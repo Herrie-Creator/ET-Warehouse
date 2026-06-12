@@ -31,7 +31,7 @@ const INIT_PROJECTS = [];
 
 const INIT_QUOTES = [];
 
-const CAT_COLORS  = { Audio:"#ff8c00", Lighting:"#8b5cf6", Video:"#06b6d4", Rigging:"#ef4444", Staging:"#10b981" };
+const CAT_COLORS  = { Audio:"#ff8c00", Lighting:"#8b5cf6", Video:"#06b6d4", AV:"#06b6d4", LED:"#ec4899", Rigging:"#ef4444", Staging:"#10b981", Power:"#eab308", Cables:"#3b82f6", "3-Phase":"#eab308", Trussing:"#ef4444" };
 const ST_COLORS   = { available:"#10b981", out:"#ff8c00", maintenance:"#6b7280", booked:"#3b82f6", returned:"#10b981", partially_returned:"#ff8c00", active:"#ff8c00", upcoming:"#8b5cf6", completed:"#6b7280" };
 const AV_COLORS   = ["#ff8c00","#8b5cf6","#10b981","#3b82f6","#ef4444","#06b6d4"];
 const MANAGER_EMAILS = ["wynand@eventech.co.za","herman@eventech.co.za"];
@@ -533,14 +533,15 @@ function Dashboard({units,equipTypes,cableStock=[],projects,quotes,faultReports,
         </Card>
         <Card>
           <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Assets by Category</div>
-          {["Audio","Lighting","AV","Rigging","Staging"].map(cat=>{
+          {[...new Set(equipTypes.map(t=>t.category))].sort().map(cat=>{
             const typeIds=equipTypes.filter(t=>t.category===cat).map(t=>t.id);
             const catUnits=units.filter(u=>typeIds.includes(u.typeId));
             const total=catUnits.length, avail=catUnits.filter(u=>u.status==="available").length;
+            if(total===0) return null;
             const pct=total?Math.round(avail/total*100):0;
             return(<div key={cat} style={{marginBottom:12}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:"#e5e7eb",fontSize:13,fontWeight:600}}>{cat}</span><span style={{color:"#6b7280",fontSize:12}}>{avail}/{total} avail</span></div>
-              <div style={{background:"#1f2937",borderRadius:4,height:6}}><div style={{width:`${pct}%`,height:6,borderRadius:4,background:CAT_COLORS[cat]}}/></div>
+              <div style={{background:"#1f2937",borderRadius:4,height:6}}><div style={{width:`${pct}%`,height:6,borderRadius:4,background:CAT_COLORS[cat]||"#6b7280"}}/></div>
             </div>);
           })}
         </Card>
@@ -960,7 +961,6 @@ How many are being returned now?`);
           </Card>
         </div>
       )}
-
 
 
       {phase==="create"&&<CreateForm/>}
@@ -1598,7 +1598,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <StockImage name={selType.name} customImage={selType.customImage||null} size={48}/>
-            <Badge label={selType.category} color={CAT_COLORS[selType.category]}/>
+            <Badge label={selType.category} color={CAT_COLORS[selType.category]||"#6b7280"}/>
           </div>
           {canEdit&&<ImageUploadBtn small onUpload={(img)=>{setEquipTypes(p=>p.map(t=>t.id===selType.id?{...t,customImage:img}:t));setSelType(p=>({...p,customImage:img}));}} label="📷 Change Image"/>}
         </div>
@@ -4327,155 +4327,6 @@ function UploadPrepForm({user,onSave,onCancel}){
   );
 }
 
-
-
-// ── WAREHOUSE DISPLAY ─────────────────────────────────────────────────────────
-// Live operations overview — designed to run on a warehouse monitor
-function WarehouseDisplay({units,equipTypes,projects,quotes,faultReports}){
-  const [now,setNow]=useState(new Date());
-  useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),1000); return()=>clearInterval(t); },[]);
-
-  const today=new Date().toISOString().split("T")[0];
-  const totalUnits=units.length;
-  const outUnits=units.filter(u=>u.status==="out").length;
-  const maintUnits=units.filter(u=>u.status==="maintenance").length;
-  const availUnits=units.filter(u=>u.status==="available").length;
-
-  const upcoming=[...projects].filter(p=>p.status!=="completed"&&p.status!=="cancelled")
-    .sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,6);
-
-  const overdue=quotes.filter(q=>(q.status==="out"||q.status==="partially_returned")&&q.endDate<today);
-  const dueSoon=quotes.filter(q=>(q.status==="out"||q.status==="partially_returned")&&q.endDate>=today&&q.endDate<=new Date(Date.now()+2*86400000).toISOString().split("T")[0]);
-  const openFaults=faultReports.filter(f=>f.status==="open"||f.status==="acknowledged").length;
-  const activeQuotes=quotes.filter(q=>q.status==="out"||q.status==="partially_returned");
-
-  const maintDetail=units.filter(u=>u.status==="maintenance").map(u=>{
-    const type=equipTypes.find(t=>t.id===u.typeId);
-    const fault=faultReports.find(f=>f.unitId===u.id);
-    return{...u,typeName:type?.name||"Unknown",faultNote:fault?.notes||""};
-  });
-
-  const ST_C={planning:"#6b7280",confirmed:"#3b82f6",active:"#10b981",completed:"#4b5563",cancelled:"#ef4444"};
-  const timeStr=now.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  const dateStr=now.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-
-  const SC=({label,value,sub,color})=>(
-    <div style={{flex:1,minWidth:150,background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:"20px 24px"}}>
-      <div style={{color:"#6b7280",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>{label}</div>
-      <div style={{fontSize:44,fontWeight:900,color,fontFamily:"monospace",lineHeight:1}}>{value}</div>
-      <div style={{color:"#4b5563",fontSize:13,marginTop:6}}>{sub}</div>
-    </div>
-  );
-
-  return(
-    <div style={{minHeight:"100vh",background:"#0d1117",fontFamily:"'DM Sans',sans-serif",color:"#e5e7eb",padding:"24px 32px",boxSizing:"border-box"}}>
-      {/* Header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div>
-          <div style={{display:"flex",alignItems:"center",gap:14}}>
-            <div style={{width:10,height:10,borderRadius:"50%",background:"#10b981",boxShadow:"0 0 8px #10b981"}}/>
-            <h1 style={{color:"#fff",fontSize:26,fontWeight:900,margin:0}}>Operations Overview</h1>
-            <div style={{background:"#ff8c0022",border:"1px solid #ff8c0044",borderRadius:8,padding:"3px 12px",fontSize:12,color:"#ff8c00",fontWeight:700}}>WAREHOUSE DISPLAY</div>
-          </div>
-          <div style={{color:"#6b7280",fontSize:13,marginTop:4,marginLeft:24}}>Eventech Warehouse Management · Live View</div>
-        </div>
-        <div style={{textAlign:"right"}}>
-          <div style={{color:"#fff",fontSize:34,fontWeight:900,fontFamily:"monospace",letterSpacing:2,lineHeight:1}}>{timeStr}</div>
-          <div style={{color:"#9ca3af",fontSize:13,fontWeight:600,marginTop:4}}>{dateStr}</div>
-        </div>
-      </div>
-
-      {/* Alert Banners */}
-      {overdue.length>0&&(
-        <div style={{background:"#1a0808",border:"2px solid #ef4444",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{color:"#ef4444",fontWeight:800,fontSize:15}}>🚨 {overdue.length} Overdue Quote{overdue.length!==1?"s":""}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{overdue.map(q=>q.id).join(", ")} — equipment not returned</div></div>
-          <Badge label="Action Required" color="#ef4444"/>
-        </div>
-      )}
-      {dueSoon.length>0&&(
-        <div style={{background:"#1a1200",border:"1px solid #f59e0b44",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{color:"#f59e0b",fontWeight:700,fontSize:14}}>⚠️ {dueSoon.length} Quote{dueSoon.length!==1?"s":""} Due in 48 Hours</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>{dueSoon.map(q=>`${q.id} (${q.endDate})`).join(", ")}</div></div>
-          <Badge label="Due Soon" color="#f59e0b"/>
-        </div>
-      )}
-      {openFaults>0&&(
-        <div style={{background:"#1a0808",border:"1px solid #ef444433",borderRadius:12,padding:"12px 18px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{color:"#ef4444",fontWeight:700,fontSize:14}}>🔧 {openFaults} Open Fault Report{openFaults!==1?"s":""}</div><div style={{color:"#9ca3af",fontSize:12,marginTop:2}}>Requires warehouse attention</div></div>
-          <Badge label="Needs Attention" color="#ef4444"/>
-        </div>
-      )}
-
-      {/* Stat Cards */}
-      <div style={{display:"flex",gap:14,marginBottom:18,flexWrap:"wrap"}}>
-        <SC label="Total Assets"  value={totalUnits} sub="individual units tracked" color="#ff8c00"/>
-        <SC label="Available"     value={availUnits} sub="ready in warehouse"       color="#10b981"/>
-        <SC label="Out on Hire"   value={outUnits}   sub="currently with clients"   color="#f59e0b"/>
-        <SC label="Maintenance"   value={maintUnits} sub="flagged for service"      color="#ef4444"/>
-      </div>
-
-      {/* Main Grid */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
-        {/* Upcoming Projects */}
-        <div style={{background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:20}}>
-          <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Upcoming Projects</div>
-          {upcoming.length===0&&<div style={{color:"#4b5563",fontSize:13}}>No upcoming projects</div>}
-          {upcoming.map(p=>(
-            <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid #1f2937"}}>
-              <div><div style={{color:"#e5e7eb",fontWeight:600,fontSize:14}}>{p.name}</div><div style={{color:"#6b7280",fontSize:12}}>{p.venue||"—"}</div></div>
-              <div style={{textAlign:"right"}}><Badge label={p.status} color={ST_C[p.status]||"#6b7280"}/><div style={{color:"#4b5563",fontSize:11,marginTop:4}}>{p.startDate}</div></div>
-            </div>
-          ))}
-        </div>
-
-        {/* Active Hires */}
-        <div style={{background:"#161b27",border:"1px solid #2a2a3a",borderRadius:14,padding:20}}>
-          <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:14}}>Active Hires ({activeQuotes.length})</div>
-          {activeQuotes.length===0&&<div style={{color:"#4b5563",fontSize:13}}>No active hires</div>}
-          <div style={{maxHeight:340,overflowY:"auto"}}>
-            {activeQuotes.map(q=>{
-              const isOverdue=q.endDate<today;
-              return(
-                <div key={q.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #1f2937"}}>
-                  <div><div style={{color:isOverdue?"#ef4444":"#e5e7eb",fontWeight:700,fontSize:13,fontFamily:"monospace"}}>{q.id}</div><div style={{color:"#6b7280",fontSize:12}}>{q.client}</div></div>
-                  <div style={{textAlign:"right"}}><Badge label={q.status} color={isOverdue?"#ef4444":"#f59e0b"}/><div style={{color:isOverdue?"#ef444488":"#4b5563",fontSize:11,marginTop:3}}>due {q.endDate}</div></div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Maintenance */}
-        <div style={{background:"#161b27",border:`1px solid ${maintDetail.length>0?"#ef444433":"#2a2a3a"}`,borderRadius:14,padding:20}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase"}}>🔧 Under Maintenance</div>
-            <span style={{background:maintDetail.length>0?"#ef444422":"#1f293766",color:maintDetail.length>0?"#ef4444":"#4b5563",border:`1px solid ${maintDetail.length>0?"#ef444444":"#374151"}`,borderRadius:20,padding:"2px 10px",fontSize:12,fontWeight:700}}>{maintDetail.length}</span>
-          </div>
-          {maintDetail.length===0&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 0",gap:8}}><div style={{fontSize:28}}>✅</div><div style={{color:"#10b981",fontSize:13,fontWeight:600}}>All clear — no units in maintenance</div></div>}
-          <div style={{maxHeight:340,overflowY:"auto"}}>
-            {maintDetail.map(u=>(
-              <div key={u.id} style={{padding:"10px 0",borderBottom:"1px solid #1f2937"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{color:"#e5e7eb",fontWeight:600,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{u.typeName}</div>
-                    <div style={{color:"#6b7280",fontSize:12,marginTop:2,fontFamily:"monospace"}}>{u.assetNo||u.id}</div>
-                    {u.faultNote&&<div style={{color:"#f59e0b",fontSize:11,marginTop:3,fontStyle:"italic"}}>"{u.faultNote}"</div>}
-                  </div>
-                  <Badge label="maintenance" color="#ef4444"/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{marginTop:14,display:"flex",justifyContent:"center",alignItems:"center",gap:8}}>
-        <div style={{width:6,height:6,borderRadius:"50%",background:"#10b981"}}/>
-        <div style={{color:"#374151",fontSize:12}}>Live data from localStorage · Updates with every app change</div>
-      </div>
-    </div>
-  );
-}
 
 // ── REPORTS PAGE ──────────────────────────────────────────────────────────────
 function ReportsPage({units,equipTypes,cableStock,quotes,faultReports,stockTakes,user}){
