@@ -248,34 +248,8 @@ function Dashboard({units,equipTypes,cableStock=[],projects,quotes,faultReports,
   const upcoming=[...projects].filter(p=>p.status!=="completed").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,4);
 
   const openWarehouseDisplay=()=>{
-    const today=new Date().toISOString().split("T")[0];
-    const activeQuotes=quotes.filter(q=>q.status==="out"||q.status==="partially_returned");
-    const overdueQuotes=activeQuotes.filter(q=>q.endDate<today);
-    const dueSoonQuotes=activeQuotes.filter(q=>q.endDate>=today&&q.endDate<=new Date(Date.now()+2*86400000).toISOString().split("T")[0]);
-    const upcomingProjects=[...projects].filter(p=>p.status!=="completed"&&p.status!=="cancelled").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,8);
-    const maintUnitsDetail=units.filter(u=>u.status==="maintenance").map(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); const f=(faultReports||[]).find(x=>x.unitId===u.id); return{...u,typeName:t?.name||"Unknown",faultNote:f?.notes||""}; });
-    const openFaultsList=(faultReports||[]).filter(f=>f.status==="open"||f.status==="in-repair"||f.status==="acknowledged");
-    const logo=LOGO_B64;
-
-    // Build mini calendar for current month
-    const now=new Date();
-    const yr=now.getFullYear(), mo=now.getMonth();
-    const daysInMonth=new Date(yr,mo+1,0).getDate();
-    const firstDay=new Date(yr,mo,1).getDay();
-    const monthName=["January","February","March","April","May","June","July","August","September","October","November","December"][mo];
-    const calDays=[];
-    for(let i=0;i<firstDay;i++) calDays.push({day:null});
-    for(let i=1;i<=daysInMonth;i++){
-      const d=`${yr}-${String(mo+1).padStart(2,"0")}-${String(i).padStart(2,"0")}`;
-      const hasProj=projects.some(p=>p.startDate<=d&&p.endDate>=d&&p.status!=="completed");
-      const hasQuote=quotes.some(q=>q.startDate<=d&&q.endDate>=d&&q.status!=="returned");
-      const isToday=d===today;
-      calDays.push({day:i,d,hasProj,hasQuote,isToday});
-    }
-    const calRows=[];
-    for(let i=0;i<calDays.length;i+=7) calRows.push(calDays.slice(i,i+7));
-
     const win=window.open("","WarehouseDisplay","width=1440,height=900,toolbar=no,menubar=no,scrollbars=yes");
+    const logo=LOGO_B64;
     win.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -301,138 +275,175 @@ function Dashboard({units,equipTypes,cableStock=[],projects,quotes,faultReports,
     .cal-cell.today{background:#ff8c0033;color:#ff8c00;font-weight:900;border:1px solid #ff8c0066}
     .cal-cell.has-event{color:#e5e7eb}
     .cal-dot{width:5px;height:5px;border-radius:50%;position:absolute;bottom:3px}
+    #live-badge{animation:pulse 2s infinite}
   </style>
 </head>
 <body>
-  <!-- HEADER -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:18px">
-      <img src="${logo}" alt="Eventech" style="height:58px;object-fit:contain"/>
-      <div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:9px;height:9px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 2s infinite"></div>
-          <span style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-.5px">Warehouse Operations</span>
-          <span style="background:#ff8c0022;border:1px solid #ff8c0044;border-radius:7px;padding:3px 10px;font-size:10px;color:#ff8c00;font-weight:700">LIVE</span>
-        </div>
-        <div style="color:#6b7280;font-size:12px;margin-top:3px;margin-left:20px">Eventech Warehouse Management System</div>
-      </div>
-    </div>
-    <div style="text-align:right">
-      <div id="clock" style="color:#fff;font-size:56px;font-weight:900;font-family:'DM Mono',monospace;letter-spacing:3px;line-height:1"></div>
-      <div id="dateline" style="color:#9ca3af;font-size:15px;font-weight:600;margin-top:6px"></div>
-    </div>
-  </div>
-
-  <!-- ALERT BANNERS -->
-  ${overdueQuotes.length>0?`<div style="background:#1a0808;border:2px solid #ef4444;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#ef4444;font-weight:800">🚨 ${overdueQuotes.length} Overdue — ${overdueQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">Action Required</span></div>`:""}
-  ${dueSoonQuotes.length>0?`<div style="background:#1a1200;border:1px solid #f59e0b44;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#f59e0b;font-weight:700">⚠️ Due back within 48h: ${dueSoonQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">Due Soon</span></div>`:""}
-
-  <!-- STAT CARDS -->
-  <div style="display:flex;gap:12px;margin-bottom:16px">
-    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Total Assets</div><div style="font-size:48px;font-weight:900;color:#ff8c00;font-family:'DM Mono',monospace;line-height:1">${units.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">individual units tracked</div></div>
-    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Available</div><div style="font-size:48px;font-weight:900;color:#10b981;font-family:'DM Mono',monospace;line-height:1">${units.filter(u=>u.status==="available").length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">ready in warehouse</div></div>
-    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Out on Hire</div><div style="font-size:48px;font-weight:900;color:#f59e0b;font-family:'DM Mono',monospace;line-height:1">${activeQuotes.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">currently with clients</div></div>
-    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Maintenance</div><div style="font-size:48px;font-weight:900;color:#ef4444;font-family:'DM Mono',monospace;line-height:1">${maintUnitsDetail.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">flagged for service</div></div>
-    <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Open Faults</div><div style="font-size:48px;font-weight:900;color:#8b5cf6;font-family:'DM Mono',monospace;line-height:1">${openFaultsList.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">reported issues</div></div>
-  </div>
-
-  <!-- MAIN GRID -->
-  <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
-
-    <!-- CALENDAR -->
-    <div class="card">
-      <div class="section-title">📅 ${monthName} ${yr}</div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr>${["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>`<td style="text-align:center;color:#4b5563;font-size:10px;font-weight:700;padding-bottom:6px">${d}</td>`).join("")}</tr></thead>
-        <tbody>
-          ${calRows.map(row=>`<tr>${row.map(cell=>cell.day?
-            `<td style="text-align:center;padding:2px"><div class="cal-cell${cell.isToday?" today":cell.hasProj||cell.hasQuote?" has-event":""}" style="margin:0 auto">
-              ${cell.day}
-              ${cell.hasProj?`<div class="cal-dot" style="background:#3b82f6;left:6px"></div>`:""}
-              ${cell.hasQuote?`<div class="cal-dot" style="background:#ff8c00;right:6px"></div>`:""}
-            </div></td>`:
-            `<td></td>`).join("")}</tr>`).join("")}
-        </tbody>
-      </table>
-      <div style="display:flex;gap:12px;margin-top:10px">
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#3b82f6"></div><span style="color:#6b7280;font-size:10px">Project</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#ff8c00"></div><span style="color:#6b7280;font-size:10px">Hire Out</span></div>
-        <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#ff8c0033;border:1px solid #ff8c0066"></div><span style="color:#6b7280;font-size:10px">Today</span></div>
-      </div>
-    </div>
-
-    <!-- UPCOMING PROJECTS -->
-    <div class="card">
-      <div class="section-title">📁 Upcoming Projects</div>
-      <div style="max-height:280px;overflow-y:auto">
-        ${upcomingProjects.length===0?'<div style="color:#4b5563;font-size:12px">No upcoming projects</div>':
-          upcomingProjects.map(p=>`<div class="row"><div><div class="name">${p.name}</div><div class="sub">${p.venue||"—"}</div></div><div style="text-align:right"><span class="badge" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f633">${p.status}</span><div style="color:#4b5563;font-size:10px;margin-top:3px">${p.startDate}</div></div></div>`).join("")}
-      </div>
-    </div>
-
-    <!-- FAULTY EQUIPMENT -->
-    <div class="card" style="border-color:${(maintUnitsDetail.length+openFaultsList.length)>0?"#ef444433":"#2a2a3a"}">
-      <div class="section-title">🔧 Maintenance & Faults</div>
-      <div style="max-height:280px;overflow-y:auto">
-        ${(maintUnitsDetail.length+openFaultsList.length)===0?
-          '<div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:6px"><div style="font-size:28px">✅</div><div style="color:#10b981;font-size:12px;font-weight:600">All clear</div></div>'
-          :`${maintUnitsDetail.map(u=>`<div class="row"><div><div class="name">${u.typeName}</div><div class="sub" style="font-family:monospace">${u.assetNo||u.id}</div>${u.faultNote?`<div style="color:#f59e0b;font-size:10px;font-style:italic">"${u.faultNote}"</div>`:""}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">maint</span></div>`).join("")}
-          ${openFaultsList.map(f=>`<div class="row"><div><div class="name">${f.assetName||"Unknown"}</div><div class="sub">📍 ${f.location||"—"}</div>${f.notes?`<div style="color:#9ca3af;font-size:10px;font-style:italic">"${f.notes.slice(0,40)}..."</div>`:""}</div><span class="badge" style="background:${f.status==="in-repair"?"#8b5cf622":"#ef444422"};color:${f.status==="in-repair"?"#8b5cf6":"#ef4444"};border:1px solid ${f.status==="in-repair"?"#8b5cf644":"#ef444444"}">${f.status==="in-repair"?"In Repair":"Fault"}</span></div>`).join("")}`}
-      </div>
-    </div>
-
-    <!-- GATE CAMERA -->
-    <div class="card">
-      <div class="section-title">📷 Gate Camera</div>
-      <div style="background:#0d1117;border-radius:8px;overflow:hidden;aspect-ratio:16/9;position:relative;border:1px solid #2a2a3a">
-        <img
-          src="http://192.168.1.211/cgi-bin/currentpic.cgi?usr=admin&pwd=aDMIN6789"
-          alt="Gate Camera"
-          id="cam"
-          style="width:100%;height:100%;object-fit:cover"
-          onerror="this.dataset.error=1;document.getElementById('camErr').style.display='flex';this.style.display='none'"
-        />
-        <div id="camErr" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;gap:8px">
-          <div style="font-size:32px">📷</div>
-          <div style="color:#4b5563;font-size:12px;text-align:center">Camera not available<br/>Check network connection</div>
-          <div style="color:#374151;font-size:10px;margin-top:4px">192.168.1.211</div>
-        </div>
-      </div>
-      <div style="color:#374151;font-size:10px;margin-top:6px;text-align:center">Gate Camera · Must be on same local network as this PC</div>
-    </div>
-
-  </div>
-
-  <!-- CURRENT HIRE OUTS -->
-  <div class="card" style="margin-top:14px">
-    <div class="section-title">📦 Current Hire Outs (${activeQuotes.length})</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
-      ${activeQuotes.length===0?'<div style="color:#4b5563;font-size:12px">No active hires</div>':
-        activeQuotes.map(q=>{const isOD=q.endDate<today; return`<div style="background:#0d1117;border-radius:8px;padding:10px 12px;border:1px solid ${isOD?"#ef444433":"#ff8c0022"}"><div style="color:${isOD?"#ef4444":"#ff8c00"};font-weight:800;font-size:14px;font-family:'DM Mono',monospace">${q.id}</div><div style="color:#e5e7eb;font-size:12px;margin-top:2px">${q.client||""}</div><div style="color:#6b7280;font-size:11px;margin-top:2px">Due: ${q.endDate}${isOD?" 🚨":""} · ${q.lines?.length||0} items</div>${q.driver?`<div style="color:#4b5563;font-size:10px;margin-top:2px">👤 ${q.driver}</div>`:""}</div>`;}).join("")}
-    </div>
-  </div>
-
-  <!-- FOOTER / CLOCK SCRIPT -->
-  <div style="margin-top:12px;display:flex;justify-content:center;gap:8px;align-items:center">
-    <div style="width:5px;height:5px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div>
-    <div style="color:#374151;font-size:11px">Eventech Warehouse Display · Auto-refreshes every 60s</div>
-  </div>
-
+  <div id="root"></div>
   <script>
+    const LOGO="${logo}";
+
+    function parse(key,fb){ try{ const s=localStorage.getItem("et_"+key); return s?JSON.parse(s):fb; }catch{ return fb; } }
+
+    function render(){
+      const units=parse("units",[]);
+      const equipTypes=parse("equipTypes",[]);
+      const projects=parse("projects",[]);
+      const quotes=parse("quotes",[]);
+      const faultReports=parse("faultReports",[]);
+      const cableStock=parse("cableStock",[]);
+
+      const today=new Date().toISOString().split("T")[0];
+      const activeQuotes=quotes.filter(q=>q.status==="out"||q.status==="partially_returned");
+      const overdueQuotes=activeQuotes.filter(q=>q.endDate<today);
+      const dueSoonQuotes=activeQuotes.filter(q=>q.endDate>=today&&q.endDate<=new Date(Date.now()+2*86400000).toISOString().split("T")[0]);
+      const upcomingProjects=[...projects].filter(p=>p.status!=="completed"&&p.status!=="cancelled").sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)).slice(0,8);
+      const maintUnitsDetail=units.filter(u=>u.status==="maintenance").map(u=>{ const t=equipTypes.find(x=>x.id===u.typeId); const f=(faultReports||[]).find(x=>x.unitId===u.id); return{...u,typeName:t?.name||"Unknown",faultNote:f?.notes||""}; });
+      const openFaultsList=(faultReports||[]).filter(f=>f.status==="open"||f.status==="in-repair"||f.status==="acknowledged");
+
+      const now=new Date();
+      const yr=now.getFullYear(), mo=now.getMonth();
+      const daysInMonth=new Date(yr,mo+1,0).getDate();
+      const firstDay=new Date(yr,mo,1).getDay();
+      const monthName=["January","February","March","April","May","June","July","August","September","October","November","December"][mo];
+      const calDays=[];
+      for(let i=0;i<firstDay;i++) calDays.push({day:null});
+      for(let i=1;i<=daysInMonth;i++){
+        const d=yr+"-"+String(mo+1).padStart(2,"0")+"-"+String(i).padStart(2,"0");
+        const hasProj=projects.some(p=>p.startDate<=d&&p.endDate>=d&&p.status!=="completed");
+        const hasQuote=quotes.some(q=>q.startDate<=d&&q.endDate>=d&&q.status!=="returned");
+        const isToday=d===today;
+        calDays.push({day:i,d,hasProj,hasQuote,isToday});
+      }
+      const calRows=[];
+      for(let i=0;i<calDays.length;i+=7) calRows.push(calDays.slice(i,i+7));
+
+      document.getElementById("root").innerHTML=\`
+      <!-- HEADER -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:18px">
+          <img src="\${LOGO}" alt="Eventech" style="height:58px;object-fit:contain"/>
+          <div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div id="live-badge" style="width:9px;height:9px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981;animation:pulse 2s infinite"></div>
+              <span style="color:#fff;font-size:22px;font-weight:900;letter-spacing:-.5px">Warehouse Operations</span>
+              <span style="background:#ff8c0022;border:1px solid #ff8c0044;border-radius:7px;padding:3px 10px;font-size:10px;color:#ff8c00;font-weight:700">LIVE</span>
+            </div>
+            <div style="color:#6b7280;font-size:12px;margin-top:3px;margin-left:20px">Eventech Warehouse Management System</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div id="clock" style="color:#fff;font-size:56px;font-weight:900;font-family:'DM Mono',monospace;letter-spacing:3px;line-height:1"></div>
+          <div id="dateline" style="color:#9ca3af;font-size:15px;font-weight:600;margin-top:6px"></div>
+        </div>
+      </div>
+
+      \${overdueQuotes.length>0?\`<div style="background:#1a0808;border:2px solid #ef4444;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#ef4444;font-weight:800">🚨 \${overdueQuotes.length} Overdue — \${overdueQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">Action Required</span></div>\`:""}
+      \${dueSoonQuotes.length>0?\`<div style="background:#1a1200;border:1px solid #f59e0b44;border-radius:10px;padding:10px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div style="color:#f59e0b;font-weight:700">⚠️ Due back within 48h: \${dueSoonQuotes.map(q=>q.id).join(", ")}</div><span class="badge" style="background:#f59e0b22;color:#f59e0b;border:1px solid #f59e0b44">Due Soon</span></div>\`:""}
+
+      <!-- STAT CARDS -->
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Total Assets</div><div style="font-size:48px;font-weight:900;color:#ff8c00;font-family:'DM Mono',monospace;line-height:1">\${units.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">individual units tracked</div></div>
+        <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Available</div><div style="font-size:48px;font-weight:900;color:#10b981;font-family:'DM Mono',monospace;line-height:1">\${units.filter(u=>u.status==="available").length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">ready in warehouse</div></div>
+        <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Out on Hire</div><div style="font-size:48px;font-weight:900;color:#f59e0b;font-family:'DM Mono',monospace;line-height:1">\${activeQuotes.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">currently with clients</div></div>
+        <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Maintenance</div><div style="font-size:48px;font-weight:900;color:#ef4444;font-family:'DM Mono',monospace;line-height:1">\${maintUnitsDetail.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">flagged for service</div></div>
+        <div class="stat-card"><div style="color:#6b7280;font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px">Open Faults</div><div style="font-size:48px;font-weight:900;color:#8b5cf6;font-family:'DM Mono',monospace;line-height:1">\${openFaultsList.length}</div><div style="color:#4b5563;font-size:12px;margin-top:4px">reported issues</div></div>
+      </div>
+
+      <!-- MAIN GRID -->
+      <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:14px">
+
+        <!-- CALENDAR -->
+        <div class="card">
+          <div class="section-title">📅 \${monthName} \${yr}</div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr>\${["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>\`<td style="text-align:center;color:#4b5563;font-size:10px;font-weight:700;padding-bottom:6px">\${d}</td>\`).join("")}</tr></thead>
+            <tbody>
+              \${calRows.map(row=>\`<tr>\${row.map(cell=>cell.day?
+                \`<td style="text-align:center;padding:2px"><div class="cal-cell\${cell.isToday?" today":cell.hasProj||cell.hasQuote?" has-event":""}" style="margin:0 auto">
+                  \${cell.day}
+                  \${cell.hasProj?\`<div class="cal-dot" style="background:#3b82f6;left:6px"></div>\`:""}
+                  \${cell.hasQuote?\`<div class="cal-dot" style="background:#ff8c00;right:6px"></div>\`:""}
+                </div></td>\`:
+                \`<td></td>\`).join("")}</tr>\`).join("")}
+            </tbody>
+          </table>
+          <div style="display:flex;gap:12px;margin-top:10px">
+            <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#3b82f6"></div><span style="color:#6b7280;font-size:10px">Project</span></div>
+            <div style="display:flex;align-items:center;gap:4px"><div style="width:7px;height:7px;border-radius:50%;background:#ff8c00"></div><span style="color:#6b7280;font-size:10px">Hire Out</span></div>
+            <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:12px;border-radius:3px;background:#ff8c0033;border:1px solid #ff8c0066"></div><span style="color:#6b7280;font-size:10px">Today</span></div>
+          </div>
+        </div>
+
+        <!-- UPCOMING PROJECTS -->
+        <div class="card">
+          <div class="section-title">📁 Upcoming Projects</div>
+          <div style="max-height:280px;overflow-y:auto">
+            \${upcomingProjects.length===0?'<div style="color:#4b5563;font-size:12px">No upcoming projects</div>':
+              upcomingProjects.map(p=>\`<div class="row"><div><div class="name">\${p.name}</div><div class="sub">\${p.venue||"—"}</div></div><div style="text-align:right"><span class="badge" style="background:#3b82f622;color:#3b82f6;border:1px solid #3b82f633">\${p.status}</span><div style="color:#4b5563;font-size:10px;margin-top:3px">\${p.startDate}</div></div></div>\`).join("")}
+          </div>
+        </div>
+
+        <!-- FAULTY EQUIPMENT -->
+        <div class="card" style="border-color:\${(maintUnitsDetail.length+openFaultsList.length)>0?"#ef444433":"#2a2a3a"}">
+          <div class="section-title">🔧 Maintenance & Faults</div>
+          <div style="max-height:280px;overflow-y:auto">
+            \${(maintUnitsDetail.length+openFaultsList.length)===0?
+              '<div style="display:flex;flex-direction:column;align-items:center;padding:20px 0;gap:6px"><div style="font-size:28px">✅</div><div style="color:#10b981;font-size:12px;font-weight:600">All clear</div></div>'
+              :\`\${maintUnitsDetail.map(u=>\`<div class="row"><div><div class="name">\${u.typeName}</div><div class="sub" style="font-family:monospace">\${u.assetNo||u.id}</div>\${u.faultNote?\`<div style="color:#f59e0b;font-size:10px;font-style:italic">"\${u.faultNote}"</div>\`:""}</div><span class="badge" style="background:#ef444422;color:#ef4444;border:1px solid #ef444444">maint</span></div>\`).join("")}
+              \${openFaultsList.map(f=>\`<div class="row"><div><div class="name">\${f.assetName||"Unknown"}</div><div class="sub">📍 \${f.location||"—"}</div>\${f.notes?\`<div style="color:#9ca3af;font-size:10px;font-style:italic">"\${f.notes.slice(0,40)}..."</div>\`:""}</div><span class="badge" style="background:\${f.status==="in-repair"?"#8b5cf622":"#ef444422"};color:\${f.status==="in-repair"?"#8b5cf6":"#ef4444"};border:1px solid \${f.status==="in-repair"?"#8b5cf644":"#ef444444"}">\${f.status==="in-repair"?"In Repair":"Fault"}</span></div>\`).join("")}\`}
+          </div>
+        </div>
+
+        <!-- GATE CAMERA -->
+        <div class="card">
+          <div class="section-title">📷 Gate Camera</div>
+          <div style="background:#0d1117;border-radius:8px;overflow:hidden;aspect-ratio:16/9;position:relative;border:1px solid #2a2a3a">
+            <img src="http://192.168.1.211/cgi-bin/currentpic.cgi?usr=admin&pwd=aDMIN6789" alt="Gate Camera" id="cam" style="width:100%;height:100%;object-fit:cover" onerror="this.dataset.error=1;document.getElementById('camErr').style.display='flex';this.style.display='none'"/>
+            <div id="camErr" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;gap:8px">
+              <div style="font-size:32px">📷</div>
+              <div style="color:#4b5563;font-size:12px;text-align:center">Camera not available<br/>Check network connection</div>
+              <div style="color:#374151;font-size:10px;margin-top:4px">192.168.1.211</div>
+            </div>
+          </div>
+          <div style="color:#374151;font-size:10px;margin-top:6px;text-align:center">Gate Camera · Must be on same local network</div>
+        </div>
+      </div>
+
+      <!-- CURRENT HIRE OUTS -->
+      <div class="card" style="margin-top:14px">
+        <div class="section-title">📦 Current Hire Outs (\${activeQuotes.length})</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          \${activeQuotes.length===0?'<div style="color:#4b5563;font-size:12px">No active hires</div>':
+            activeQuotes.map(q=>{const isOD=q.endDate<today; return\`<div style="background:#0d1117;border-radius:8px;padding:10px 12px;border:1px solid \${isOD?"#ef444433":"#ff8c0022"}"><div style="color:\${isOD?"#ef4444":"#ff8c00"};font-weight:800;font-size:14px;font-family:'DM Mono',monospace">\${q.id}</div><div style="color:#e5e7eb;font-size:12px;margin-top:2px">\${q.client||""}</div><div style="color:#6b7280;font-size:11px;margin-top:2px">Due: \${q.endDate}\${isOD?" 🚨":""} · \${q.lines?.length||0} items</div>\${q.driver?\`<div style="color:#4b5563;font-size:10px;margin-top:2px">👤 \${q.driver}</div>\`:""}</div>\`;}).join("")}
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="margin-top:12px;display:flex;justify-content:center;gap:8px;align-items:center">
+        <div style="width:5px;height:5px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div>
+        <div id="last-updated" style="color:#374151;font-size:11px">Eventech Warehouse Display · Live — updates every 10s</div>
+      </div>
+      \`;
+
+      tick();
+    }
+
     function tick(){
       const n=new Date();
-      document.getElementById("clock").textContent=n.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-      document.getElementById("dateline").textContent=n.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+      const cl=document.getElementById("clock");
+      const dl=document.getElementById("dateline");
+      if(cl) cl.textContent=n.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+      if(dl) dl.textContent=n.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+      // Refresh camera every 5s
+      const cam=document.getElementById("cam");
+      if(cam&&!cam.dataset.error) cam.src="http://admin:aDMIN6789@192.168.1.211/cgi-bin/currentpic.cgi?t="+Date.now();
     }
-    tick();
-    setInterval(tick,1000);
-    // Refresh clock every second - page does NOT reload (avoids blank screen)
-    // To get latest data, close and reopen the display
-    // Refresh camera image every 5s (MJPEG snapshot fallback)
-    setInterval(()=>{
-      const img=document.getElementById("cam");
-      if(img){ img.src="http://admin:aDMIN6789@192.168.1.211/cgi-bin/currentpic.cgi?t="+Date.now(); }
-    },5000);
+
+    // Initial render + live polling
+    render();
+    setInterval(render, 10000);   // re-render from localStorage every 10s
+    setInterval(tick, 1000);      // clock every second
   </script>
 </body>
 </html>`);
@@ -718,6 +729,14 @@ How many do you want to add?`);
     const updated={...activeQ,lines:activeQ.lines.filter(l=>l.unitId!==unitId)};
     setQuotes(p=>p.map(q=>q.id===activeQ.id?updated:q)); setActiveQ(updated);
   }
+  function removeCableLine(cableId){
+    const line=activeQ.lines.find(l=>l.cableId===cableId);
+    if(!line) return;
+    // Restore cable stock
+    setCableStock(p=>p.map(c=>c.id===cableId?{...c,available:c.available+(line.qty||0)}:c));
+    const updated={...activeQ,lines:activeQ.lines.filter(l=>l.cableId!==cableId)};
+    setQuotes(p=>p.map(q=>q.id===activeQ.id?updated:q)); setActiveQ(updated);
+  }
   function finaliseCheckout(){
     const now=new Date().toISOString();
     const updated={...activeQ,status:"out",checkedOutAt:now,lines:activeQ.lines.map(l=>({...l,status:"out"}))};
@@ -972,9 +991,19 @@ How many are being returned now?`);
             </Sel>
           </div>
           <div style={{marginBottom:16}}>
-            <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Equipment on this Quote ({activeQ.lines.length} units)</div>
+            <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Equipment on this Quote ({activeQ.lines.filter(l=>!l.isCable).length} units{activeQ.lines.some(l=>l.isCable)?` + ${activeQ.lines.filter(l=>l.isCable).length} cable type${activeQ.lines.filter(l=>l.isCable).length!==1?"s":""}`:""} — {activeQ.lines.length} lines total)</div>
             {activeQ.lines.length===0&&<div style={{color:"#4b5563",fontSize:13,textAlign:"center",padding:"20px 0"}}>No units added yet — scan or select above.</div>}
-            {activeQ.lines.map(line=>{ const unit=units.find(u=>u.id===line.unitId); const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
+            {activeQ.lines.map((line,li)=>{
+              if(line.isCable){
+                return(<div key={line.id||`cable-${li}`} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0d1117",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #3b82f633"}}>
+                  <div>
+                    <div style={{color:"#fff",fontWeight:700,fontSize:14}}>📦 {line.cableName}</div>
+                    <div style={{color:"#6b7280",fontSize:12,marginTop:3}}>Barcode: <span style={{fontFamily:"monospace",color:"#9ca3af"}}>{line.barcode}</span> · <span style={{color:"#3b82f6",fontWeight:700}}>Qty: {line.qty}</span></div>
+                  </div>
+                  <button onClick={()=>removeCableLine(line.cableId)} style={{background:"none",border:"none",color:"#ef4444",fontSize:18,cursor:"pointer"}}>✕</button>
+                </div>);
+              }
+              const unit=units.find(u=>u.id===line.unitId); const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
               return(<div key={line.unitId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0d1117",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #2a2a3a"}}>
                 <div>
                   <div style={{color:"#fff",fontWeight:700,fontSize:14}}>{type?.name||"Unknown"}</div>
@@ -1318,7 +1347,17 @@ function QuotesPage({quotes,setQuotes,units,equipTypes,projects,user}){
           ))}
         </div>
         <div style={{color:"#9ca3af",fontSize:12,fontWeight:700,textTransform:"uppercase",marginBottom:10}}>Units on this Quote</div>
-        {detail.lines.map((line,i)=>{ const unit=units.find(u=>u.id===line.unitId); const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
+        {detail.lines.map((line,i)=>{
+          if(line.isCable){
+            return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0d1117",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #3b82f633"}}>
+              <div>
+                <div style={{color:"#fff",fontWeight:700}}>📦 {line.cableName}</div>
+                <div style={{color:"#6b7280",fontSize:12,marginTop:3}}><span style={{fontFamily:"monospace",color:"#9ca3af"}}>{line.barcode}</span> · <span style={{color:"#3b82f6",fontWeight:700}}>Qty: {line.qty}</span></div>
+              </div>
+              <Badge label={line.status} color={ST_COLORS[line.status]||"#6b7280"}/>
+            </div>);
+          }
+          const unit=units.find(u=>u.id===line.unitId); const type=unit?equipTypes.find(t=>t.id===unit.typeId):null;
           return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0d1117",borderRadius:10,padding:"12px 14px",marginBottom:8,border:"1px solid #2a2a3a"}}>
             <div>
               <div style={{color:"#fff",fontWeight:700}}>{type?.name}</div>
@@ -1398,7 +1437,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(290px,1fr))",gap:14}}>
         {filteredTypes.map(type=>{
-          const isCable=type.category==="Cables"||type.category==="Staging"||type.category==="Trussing";
+          const isCable=type.bulk||type.category==="Cables"||type.category==="Staging"||type.category==="Trussing";
           const cableData=isCable?cableStock.find(c=>c.typeId===type.id):null;
           // 3-Phase always uses individual units even if somehow in cable stock
           const typeUnits=isCable&&cableData?[]:(units.filter(u=>u.typeId===type.id));
@@ -1435,7 +1474,7 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {/* View Units — all non-cable types + 3-Phase */}
               {(!isCable||type.category==="3-Phase")&&<Btn small outline onClick={()=>setSelType(type)} color="#ff8c00">View Units</Btn>}
-              {/* Add Unit — cables add to qty, all others add individual unit */}
+              {/* Add Unit — bulk/cables add to qty, all others add individual unit */}
               {canEdit&&isCable&&type.category!=="3-Phase"&&(
                 <Btn small outline color="#10b981" onClick={()=>{
                   const c=cableStock.find(x=>x.typeId===type.id);
@@ -1614,7 +1653,13 @@ function Assets({equipTypes,setEquipTypes,units,setUnits,cableStock,setCableStoc
       </Modal>)}
 
       {addType&&(<Modal title="Add Equipment Type" onClose={()=>setAddType(false)}>
-        <AddTypeForm categories={allCats} onSave={t=>{setEquipTypes(p=>[...p,t]);setAddType(false);}} onCancel={()=>setAddType(false)}/>
+        <AddTypeForm categories={allCats} onSave={(t,bulkData)=>{
+          setEquipTypes(p=>[...p,t]);
+          if(bulkData){
+            setCableStock(p=>[...p,{id:`CB${Date.now()}`,typeId:t.id,barcode:bulkData.barcode,qty:bulkData.qty,available:bulkData.qty,notes:t.name,history:[]}]);
+          }
+          setAddType(false);
+        }} onCancel={()=>setAddType(false)}/>
       </Modal>)}
     </div>
   );
@@ -1637,10 +1682,34 @@ function AddTypeForm({onSave,onCancel,categories}){
   const BUILT_IN=["Audio","Lighting","AV","LED","Rigging","Staging","Power","Cables","3-Phase","Trussing"];
   const cats=(categories&&categories.length>0)?categories:BUILT_IN;
   const [name,setName]=useState(""); const [cat,setCat]=useState(cats[0]||"Audio"); const [notes,setNotes]=useState(""); const [img,setImg]=useState(null);
+  const [isBulk,setIsBulk]=useState(false);
+  const [bulkBarcode,setBulkBarcode]=useState("");
+  const [bulkQty,setBulkQty]=useState(1);
+  const validBulk=!isBulk||(bulkBarcode.trim().length>0&&bulkQty>0);
   return(<div style={{display:"flex",flexDirection:"column",gap:12}}>
     <TI label="Equipment Name / Model" value={name} onChange={setName} placeholder="e.g. Shure SM58"/>
     <Sel label="Category" value={cat} onChange={setCat}>{cats.map(c=><option key={c}>{c}</option>)}</Sel>
     <TI label="Notes" value={notes} onChange={setNotes} placeholder="Any notes…"/>
+
+    {/* BULK TOGGLE */}
+    <div style={{background:"#0d1117",border:`2px solid ${isBulk?"#ff8c00":"#2a2a3a"}`,borderRadius:10,padding:"12px 14px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:isBulk?12:0}}>
+        <div>
+          <div style={{color:"#e5e7eb",fontWeight:700,fontSize:13}}>📦 Bulk / Quantity-Based Asset</div>
+          <div style={{color:"#6b7280",fontSize:11,marginTop:2}}>One barcode shared across many identical units (e.g. cables, staging, truss sections)</div>
+        </div>
+        <button onClick={()=>setIsBulk(b=>!b)} style={{padding:"6px 14px",borderRadius:8,border:`1px solid ${isBulk?"#ff8c00":"#2a2a3a"}`,background:isBulk?"#ff8c00":"#161b27",color:isBulk?"#fff":"#9ca3af",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+          {isBulk?"✓ Bulk ON":"Set as Bulk"}
+        </button>
+      </div>
+      {isBulk&&(
+        <div style={{display:"flex",gap:10}}>
+          <div style={{flex:2}}><TI label="Shared Barcode / QR Code" value={bulkBarcode} onChange={v=>setBulkBarcode(v.toUpperCase())} placeholder="e.g. CXLR10" mono/></div>
+          <div style={{flex:1}}><TI label="Starting Qty" value={bulkQty} onChange={v=>setBulkQty(Math.max(0,parseInt(v)||0))} type="number"/></div>
+        </div>
+      )}
+    </div>
+
     <div>
       <Lbl>Equipment Image (optional)</Lbl>
       <div style={{display:"flex",gap:10,alignItems:"center",marginTop:4}}>
@@ -1649,7 +1718,14 @@ function AddTypeForm({onSave,onCancel,categories}){
       </div>
       {img&&<img src={img} alt="preview" style={{marginTop:8,width:"100%",maxHeight:120,objectFit:"contain",borderRadius:8,background:"#0d1117"}}/>}
     </div>
-    <div style={{display:"flex",gap:10}}><Btn outline onClick={onCancel} color="#6b7280">Cancel</Btn><Btn disabled={!name} onClick={()=>onSave({id:Date.now(),name,category:cat,notes,customImage:img||null})}>Add Type</Btn></div>
+    <div style={{display:"flex",gap:10}}>
+      <Btn outline onClick={onCancel} color="#6b7280">Cancel</Btn>
+      <Btn disabled={!name||!validBulk} onClick={()=>{
+        const t={id:Date.now(),name,category:cat,notes,customImage:img||null,bulk:isBulk};
+        const bulkData=isBulk?{barcode:bulkBarcode.trim().toUpperCase(),qty:bulkQty}:null;
+        onSave(t,bulkData);
+      }}>Add Type</Btn>
+    </div>
   </div>);
 }
 
