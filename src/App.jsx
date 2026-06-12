@@ -4826,7 +4826,7 @@ function ReportDetail({report,units=[],equipTypes=[],cableStock=[],quotes=[],fau
 const INIT_CREW_DATA = [
   {id:1,name:"Wynand",  role:"Production Manager",phone:"+27 82 000 0001",email:"wynand@eventech.co.za",  skills:["PM","Lighting","Audio"],    status:"available"},
   {id:2,name:"Herman",  role:"Production Manager",phone:"+27 82 000 0002",email:"herman@eventech.co.za",  skills:["PM","AV","Staging"],        status:"available"},
-  {id:3,name:"Remerus",role:"Warehouse Manager", phone:"+27 82 000 0003",email:"rhemerus@eventech.co.za",skills:["Logistics","Rigging"],      status:"busy"},
+  {id:3,name:"Remerus",role:"Warehouse Manager", phone:"+27 82 000 0003",email:"remerus@eventech.co.za",skills:["Logistics","Rigging"],      status:"busy"},
   {id:4,name:"Liam",    role:"Audio HOD",          phone:"+27 82 000 0004",email:"liam@eventech.co.za",    skills:["Audio","FOH","Mixing"],     status:"available"},
   {id:5,name:"Pat",     role:"Lighting HOD",       phone:"+27 82 000 0005",email:"pat@eventech.co.za",     skills:["Lighting","Rigging","MA"],  status:"available"},
   {id:6,name:"Paulos",  role:"Structures/Rigging HOD",phone:"+27 82 000 0006",email:"paulos@eventech.co.za",skills:["Rigging","Structures","Truss"],status:"available"},
